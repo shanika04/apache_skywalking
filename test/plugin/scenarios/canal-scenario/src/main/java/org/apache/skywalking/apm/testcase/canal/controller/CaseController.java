@@ -38,7 +38,7 @@ public class CaseController {
 
     private static final String SUCCESS = "Success";
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(CaseController.class);
+    private Logger logger = LoggerFactory.getLogger(CaseController.class);
 
     @Value(value = "${canal.host}")
     private String address;
@@ -56,10 +56,10 @@ public class CaseController {
                 connector.rollback();
                 Message message = connector.getWithoutAck(batchSize);
                 long batchId = message.getId();
-                LOGGER.info(message.getEntries().toString());
+                logger.info(message.getEntries().toString());
                 connector.ack(batchId);
             } catch (Exception ex) {
-                LOGGER.error(ex.toString());
+                logger.error(ex.toString());
             }
         });
         return SUCCESS;

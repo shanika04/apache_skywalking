@@ -23,9 +23,9 @@ import java.util.List;
 import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.oap.server.core.alarm.AlarmRecord;
-import org.apache.skywalking.oap.server.core.query.type.AlarmMessage;
-import org.apache.skywalking.oap.server.core.query.type.Alarms;
-import org.apache.skywalking.oap.server.core.query.enumeration.Scope;
+import org.apache.skywalking.oap.server.core.query.entity.AlarmMessage;
+import org.apache.skywalking.oap.server.core.query.entity.Alarms;
+import org.apache.skywalking.oap.server.core.query.entity.Scope;
 import org.apache.skywalking.oap.server.core.storage.query.IAlarmQueryDAO;
 import org.apache.skywalking.oap.server.storage.plugin.influxdb.InfluxClient;
 import org.elasticsearch.common.Strings;
@@ -60,8 +60,8 @@ public class AlarmQuery implements IAlarmQueryDAO {
             .from(client.getDatabase(), AlarmRecord.INDEX_NAME)
             .where();
         if (startTB > 0 && endTB > 0) {
-            recallQuery.and(gte(InfluxClient.TIME, InfluxClient.timeIntervalTB(startTB)))
-                       .and(lte(InfluxClient.TIME, InfluxClient.timeIntervalTB(endTB)));
+            recallQuery.and(gte(InfluxClient.TIME, InfluxClient.timeInterval(startTB)))
+                       .and(lte(InfluxClient.TIME, InfluxClient.timeInterval(endTB)));
         }
         if (!Strings.isNullOrEmpty(keyword)) {
             recallQuery.and(contains(AlarmRecord.ALARM_MESSAGE, keyword.replaceAll("/", "\\\\/")));
@@ -73,7 +73,9 @@ public class AlarmQuery implements IAlarmQueryDAO {
         WhereQueryImpl<SelectQueryImpl> countQuery = select().count(AlarmRecord.ID0)
                                                              .from(client.getDatabase(), AlarmRecord.INDEX_NAME)
                                                              .where();
-        recallQuery.getClauses().forEach(countQuery::where);
+        recallQuery.getClauses().forEach(clause -> {
+            countQuery.where(clause);
+        });
 
         Query query = new Query(countQuery.getCommand() + recallQuery.getCommand());
         List<QueryResult.Result> results = client.query(query);
@@ -97,7 +99,7 @@ public class AlarmQuery implements IAlarmQueryDAO {
               .sorted((a, b) -> Long.compare((long) b.get(1), (long) a.get(1)))
               .skip(from)
               .forEach(values -> {
-                  final int sid = ((Number) values.get(4)).intValue();
+                  final int sid = (int) values.get(4);
                   Scope scope = Scope.Finder.valueOf(sid);
 
                   AlarmMessage message = new AlarmMessage();

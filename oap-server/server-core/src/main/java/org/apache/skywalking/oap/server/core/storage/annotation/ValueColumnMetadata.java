@@ -20,9 +20,6 @@ package org.apache.skywalking.oap.server.core.storage.annotation;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.apache.skywalking.oap.server.core.query.sql.Function;
 
 /**
@@ -37,13 +34,8 @@ public enum ValueColumnMetadata {
     /**
      * Register the new metadata for the given model name.
      */
-    public void putIfAbsent(String modelName,
-                            String valueCName,
-                            Column.ValueDataType dataType,
-                            Function function,
-                            int defaultValue,
-                            int scopeId) {
-        mapping.putIfAbsent(modelName, new ValueColumn(valueCName, dataType, function, defaultValue, scopeId));
+    public void putIfAbsent(String modelName, String valueCName, Function function) {
+        mapping.putIfAbsent(modelName, new ValueColumn(valueCName, function));
     }
 
     /**
@@ -60,24 +52,6 @@ public enum ValueColumnMetadata {
         return findColumn(metricsName).function;
     }
 
-    public int getDefaultValue(String metricsName) {
-        return findColumn(metricsName).defaultValue;
-    }
-
-    /**
-     * @return metric metadata if found
-     */
-    public Optional<ValueColumn> readValueColumnDefinition(String metricsName) {
-        return Optional.ofNullable(mapping.get(metricsName));
-    }
-
-    /**
-     * @return all metrics metadata.
-     */
-    public Map<String, ValueColumn> getAllMetadata() {
-        return mapping;
-    }
-
     private ValueColumn findColumn(String metricsName) {
         ValueColumn column = mapping.get(metricsName);
         if (column == null) {
@@ -86,13 +60,13 @@ public enum ValueColumnMetadata {
         return column;
     }
 
-    @Getter
-    @RequiredArgsConstructor
-    public class ValueColumn {
+    class ValueColumn {
         private final String valueCName;
-        private final Column.ValueDataType dataType;
         private final Function function;
-        private final int defaultValue;
-        private final int scopeId;
+
+        private ValueColumn(String valueCName, Function function) {
+            this.valueCName = valueCName;
+            this.function = function;
+        }
     }
 }

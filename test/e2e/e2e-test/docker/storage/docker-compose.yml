@@ -17,17 +17,27 @@ version: '2.1'
 
 services:
   ui:
-    extends:
-      file: ../base-compose.yml
-      service: ui
+    image: skywalking/ui:latest
+    expose:
+      - 8080
+    networks:
+      - e2e
+    environment:
+      - SW_OAP_ADDRESS=oap:12800
     depends_on:
       oap:
         condition: service_healthy
 
   provider:
-    extends:
-      file: ../base-compose.yml
-      service: provider
+    build:
+      context: ../../../
+      dockerfile: e2e-test/docker/Dockerfile.provider
+    networks:
+      - e2e
+    expose:
+      - 9090
+    environment:
+      - SW_AGENT_COLLECTOR_BACKEND_SERVICES=oap:11800
     depends_on:
       oap:
         condition: service_healthy

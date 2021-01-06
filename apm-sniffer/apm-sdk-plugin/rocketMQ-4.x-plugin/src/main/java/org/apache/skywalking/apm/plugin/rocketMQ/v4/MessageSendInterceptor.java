@@ -59,7 +59,6 @@ public class MessageSendInterceptor implements InstanceMethodsAroundInterceptor 
         span.setComponent(ComponentsDefine.ROCKET_MQ_PRODUCER);
         Tags.MQ_BROKER.set(span, (String) allArguments[0]);
         Tags.MQ_TOPIC.set(span, message.getTopic());
-        contextCarrier.extensionInjector().injectSendingTimestamp();
         SpanLayer.asMQ(span);
 
         SendMessageRequestHeader requestHeader = (SendMessageRequestHeader) allArguments[3];
@@ -92,7 +91,7 @@ public class MessageSendInterceptor implements InstanceMethodsAroundInterceptor 
     @Override
     public void handleMethodException(EnhancedInstance objInst, Method method, Object[] allArguments,
         Class<?>[] argumentsTypes, Throwable t) {
-        ContextManager.activeSpan().log(t);
+        ContextManager.activeSpan().errorOccurred().log(t);
     }
 
     private String buildOperationName(String topicName) {

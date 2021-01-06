@@ -48,7 +48,6 @@ import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.action.support.ActiveShardCount;
-import org.elasticsearch.action.support.IndicesOptions;
 import org.elasticsearch.action.support.WriteRequest;
 import org.elasticsearch.action.support.master.AcknowledgedResponse;
 import org.elasticsearch.client.GetAliasesResponse;
@@ -85,21 +84,16 @@ public class ElasticSearch7Client extends ElasticSearchClient {
 
     @Override
     public void connect() throws IOException, KeyStoreException, NoSuchAlgorithmException, KeyManagementException, CertificateException {
-        connectLock.lock();
-        try {
-            if (client != null) {
-                try {
-                    client.close();
-                } catch (Throwable t) {
-                    log.error("ElasticSearch7 client reconnection fails based on new config", t);
-                }
+        if (client != null) {
+            try {
+                client.close();
+            } catch (Throwable t) {
+                log.error("ElasticSearch7 client reconnection fails based on new config", t);
             }
-            List<HttpHost> hosts = parseClusterNodes(protocol, clusterNodes);
-            client = createClient(hosts);
-            client.ping(RequestOptions.DEFAULT);
-        } finally {
-            connectLock.unlock();
         }
+        List<HttpHost> hosts = parseClusterNodes(protocol, clusterNodes);
+        client = createClient(hosts);
+        client.ping(RequestOptions.DEFAULT);
     }
 
     public boolean createIndex(String indexName) throws IOException {
@@ -130,14 +124,7 @@ public class ElasticSearch7Client extends ElasticSearchClient {
         aliases = formatIndexName(aliases);
 
         GetAliasesRequest getAliasesRequest = new GetAliasesRequest(aliases);
-        GetAliasesResponse alias;
-        try {
-            alias = client.indices().getAlias(getAliasesRequest, RequestOptions.DEFAULT);
-            healthChecker.health();
-        } catch (Throwable t) {
-            healthChecker.unHealth(t);
-            throw t;
-        }
+        GetAliasesResponse alias = client.indices().getAlias(getAliasesRequest, RequestOptions.DEFAULT);
         return new ArrayList<>(alias.getAliases().keySet());
     }
 
@@ -193,33 +180,17 @@ public class ElasticSearch7Client extends ElasticSearchClient {
         return acknowledgedResponse.isAcknowledged();
     }
 
-    @Override
-    public SearchResponse doSearch(SearchSourceBuilder searchSourceBuilder, String... indexNames) throws IOException {
-        SearchRequest searchRequest = new SearchRequest(indexNames);
-        searchRequest.indicesOptions(IndicesOptions.fromOptions(true, true, true, false));
+    public SearchResponse search(String indexName, SearchSourceBuilder searchSourceBuilder) throws IOException {
+        indexName = formatIndexName(indexName);
+        SearchRequest searchRequest = new SearchRequest(indexName);
         searchRequest.source(searchSourceBuilder);
-        try {
-            SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
-            healthChecker.health();
-            return response;
-        } catch (Throwable t) {
-            healthChecker.unHealth(t);
-            handleIOPoolStopped(t);
-            throw t;
-        }
+        return client.search(searchRequest, RequestOptions.DEFAULT);
     }
 
     public GetResponse get(String indexName, String id) throws IOException {
         indexName = formatIndexName(indexName);
         GetRequest request = new GetRequest(indexName, id);
-        try {
-            GetResponse response = client.get(request, RequestOptions.DEFAULT);
-            healthChecker.health();
-            return response;
-        } catch (Throwable t) {
-            healthChecker.unHealth(t);
-            throw t;
-        }
+        return client.get(request, RequestOptions.DEFAULT);
     }
 
     public SearchResponse ids(String indexName, String[] ids) throws IOException {
@@ -227,39 +198,30 @@ public class ElasticSearch7Client extends ElasticSearchClient {
 
         SearchRequest searchRequest = new SearchRequest(indexName);
         searchRequest.source().query(QueryBuilders.idsQuery().addIds(ids)).size(ids.length);
-        try {
-            SearchResponse response = client.search(searchRequest, RequestOptions.DEFAULT);
-            healthChecker.health();
-            return response;
-        } catch (Throwable t) {
-            healthChecker.unHealth(t);
-            throw t;
-        }
+        return client.search(searchRequest, RequestOptions.DEFAULT);
     }
 
     public void forceInsert(String indexName, String id, XContentBuilder source) throws IOException {
         IndexRequest request = (IndexRequest) prepareInsert(indexName, id, source);
         request.setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
-        try {
-            client.index(request, RequestOptions.DEFAULT);
-            healthChecker.health();
-        } catch (Throwable t) {
-            healthChecker.unHealth(t);
-            throw t;
-        }
+        client.index(request, RequestOptions.DEFAULT);
+    }
+
+    public void forceUpdate(String indexName, String id, XContentBuilder source, long seqNo,
+                            long primaryTerm) throws IOException {
+        org.elasticsearch.action.update.UpdateRequest request = (org.elasticsearch.action.update.UpdateRequest) prepareUpdate(
+            indexName, id, source);
+        request.setIfSeqNo(seqNo);
+        request.setIfPrimaryTerm(primaryTerm);
+        request.setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
+        client.update(request, RequestOptions.DEFAULT);
     }
 
     public void forceUpdate(String indexName, String id, XContentBuilder source) throws IOException {
         org.elasticsearch.action.update.UpdateRequest request = (org.elasticsearch.action.update.UpdateRequest) prepareUpdate(
             indexName, id, source);
         request.setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
-        try {
-            client.update(request, RequestOptions.DEFAULT);
-            healthChecker.health();
-        } catch (Throwable t) {
-            healthChecker.unHealth(t);
-            throw t;
-        }
+        client.update(request, RequestOptions.DEFAULT);
     }
 
     public InsertRequest prepareInsert(String indexName, String id, XContentBuilder source) {
@@ -294,9 +256,8 @@ public class ElasticSearch7Client extends ElasticSearchClient {
             int size = request.requests().size();
             BulkResponse responses = client.bulk(request, RequestOptions.DEFAULT);
             log.info("Synchronous bulk took time: {} millis, size: {}", responses.getTook().getMillis(), size);
-            healthChecker.health();
-        } catch (Throwable t) {
-            healthChecker.unHealth(t);
+        } catch (IOException e) {
+            log.error(e.getMessage(), e);
         }
     }
 

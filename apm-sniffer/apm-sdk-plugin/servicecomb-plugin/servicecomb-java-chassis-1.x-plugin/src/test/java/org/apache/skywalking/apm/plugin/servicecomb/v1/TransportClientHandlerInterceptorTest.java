@@ -91,7 +91,7 @@ public class TransportClientHandlerInterceptorTest {
         nextInterceptor = new TransportClientHandlerInterceptor();
         PowerMockito.mock(Invocation.class);
         when(operationMeta.getSchemaMeta()).thenReturn(schemaMeta);
-        when(endpoint.toString()).thenReturn("/bmi");
+        when(endpoint.getAddress()).thenReturn("0.0.0.0:7777");
         when(invocation.getEndpoint()).thenReturn(endpoint);
         when(invocation.getMicroserviceQualifiedName()).thenReturn("consumerTest");
         when(operationMeta.getOperationPath()).thenReturn("/bmi");
@@ -114,7 +114,7 @@ public class TransportClientHandlerInterceptorTest {
         TraceSegment traceSegment = segmentStorage.getTraceSegments().get(0);
         List<AbstractTracingSpan> spans = SegmentHelper.getSpans(traceSegment);
         assertCombSpan(spans.get(0));
-        verify(invocation, times(3)).getContext();
+        verify(invocation, times(2)).getContext();
     }
 
     private void assertCombSpan(AbstractTracingSpan span) {

@@ -27,7 +27,7 @@ import org.apache.skywalking.apm.commons.datacarrier.partition.IDataPartitioner;
 public class Channels<T> {
     private final QueueBuffer<T>[] bufferChannels;
     private IDataPartitioner<T> dataPartitioner;
-    private final BufferStrategy strategy;
+    private BufferStrategy strategy;
     private final long size;
 
     public Channels(int channelSize, int bufferSize, IDataPartitioner<T> partitioner, BufferStrategy strategy) {
@@ -36,13 +36,12 @@ public class Channels<T> {
         bufferChannels = new QueueBuffer[channelSize];
         for (int i = 0; i < channelSize; i++) {
             if (BufferStrategy.BLOCKING.equals(strategy)) {
-                bufferChannels[i] = new ArrayBlockingQueueBuffer<>(bufferSize, strategy);
+                bufferChannels[i] = new ArrayBlockingQueueBuffer<T>(bufferSize, strategy);
             } else {
-                bufferChannels[i] = new Buffer<>(bufferSize, strategy);
+                bufferChannels[i] = new Buffer<T>(bufferSize, strategy);
             }
         }
-        // noinspection PointlessArithmeticExpression
-        size = 1L * channelSize * bufferSize; // it's not pointless, it prevents numeric overflow before assigning an integer to a long
+        size = channelSize * bufferSize;
     }
 
     public boolean save(T data) {

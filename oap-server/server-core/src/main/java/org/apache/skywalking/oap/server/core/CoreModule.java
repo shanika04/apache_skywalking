@@ -20,24 +20,18 @@ package org.apache.skywalking.oap.server.core;
 
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.skywalking.oap.server.core.analysis.meter.MeterSystem;
 import org.apache.skywalking.oap.server.core.cache.NetworkAddressAliasCache;
 import org.apache.skywalking.oap.server.core.cache.ProfileTaskCache;
 import org.apache.skywalking.oap.server.core.command.CommandService;
 import org.apache.skywalking.oap.server.core.config.ConfigService;
 import org.apache.skywalking.oap.server.core.config.DownSamplingConfigService;
 import org.apache.skywalking.oap.server.core.config.IComponentLibraryCatalogService;
-import org.apache.skywalking.oap.server.core.config.NamingControl;
-import org.apache.skywalking.oap.server.core.management.ui.template.UITemplateManagementService;
-import org.apache.skywalking.oap.server.core.oal.rt.OALEngineLoaderService;
 import org.apache.skywalking.oap.server.core.profile.ProfileTaskMutationService;
 import org.apache.skywalking.oap.server.core.query.AggregationQueryService;
 import org.apache.skywalking.oap.server.core.query.AlarmQueryService;
-import org.apache.skywalking.oap.server.core.query.BrowserLogQueryService;
 import org.apache.skywalking.oap.server.core.query.LogQueryService;
 import org.apache.skywalking.oap.server.core.query.MetadataQueryService;
-import org.apache.skywalking.oap.server.core.query.MetricsMetadataQueryService;
-import org.apache.skywalking.oap.server.core.query.MetricsQueryService;
+import org.apache.skywalking.oap.server.core.query.MetricQueryService;
 import org.apache.skywalking.oap.server.core.query.ProfileTaskQueryService;
 import org.apache.skywalking.oap.server.core.query.TopNRecordsQueryService;
 import org.apache.skywalking.oap.server.core.query.TopologyQueryService;
@@ -48,8 +42,8 @@ import org.apache.skywalking.oap.server.core.server.GRPCHandlerRegister;
 import org.apache.skywalking.oap.server.core.server.JettyHandlerRegister;
 import org.apache.skywalking.oap.server.core.source.SourceReceiver;
 import org.apache.skywalking.oap.server.core.storage.model.IModelManager;
-import org.apache.skywalking.oap.server.core.storage.model.ModelCreator;
-import org.apache.skywalking.oap.server.core.storage.model.ModelManipulator;
+import org.apache.skywalking.oap.server.core.storage.model.IModelOverride;
+import org.apache.skywalking.oap.server.core.storage.model.INewModel;
 import org.apache.skywalking.oap.server.core.worker.IWorkerInstanceGetter;
 import org.apache.skywalking.oap.server.core.worker.IWorkerInstanceSetter;
 import org.apache.skywalking.oap.server.library.module.ModuleDefine;
@@ -59,6 +53,7 @@ import org.apache.skywalking.oap.server.library.module.ModuleDefine;
  */
 public class CoreModule extends ModuleDefine {
     public static final String NAME = "core";
+    private static int ENDPOINT_NAME_MAX_LENGTH = 150;
 
     public CoreModule() {
         super(NAME);
@@ -69,13 +64,10 @@ public class CoreModule extends ModuleDefine {
         List<Class> classes = new ArrayList<>();
         classes.add(ConfigService.class);
         classes.add(DownSamplingConfigService.class);
-        classes.add(NamingControl.class);
         classes.add(IComponentLibraryCatalogService.class);
 
         classes.add(IWorkerInstanceGetter.class);
         classes.add(IWorkerInstanceSetter.class);
-
-        classes.add(MeterSystem.class);
 
         addServerInterface(classes);
         addReceiverInterface(classes);
@@ -83,16 +75,30 @@ public class CoreModule extends ModuleDefine {
         addCacheService(classes);
         addQueryService(classes);
         addProfileService(classes);
-        addOALService(classes);
-        addManagementService(classes);
 
         classes.add(CommandService.class);
 
-        return classes.toArray(new Class[]{});
+        return classes.toArray(new Class[] {});
     }
 
-    private void addManagementService(List<Class> classes) {
-        classes.add(UITemplateManagementService.class);
+    /**
+     * Format endpoint name by using the length config in the core module. This is a global rule, every place including
+     * endpoint as the {@link org.apache.skywalking.oap.server.core.source.Source} should follow this for any core
+     * module implementation.
+     *
+     * @param endpointName raw data, literal string.
+     * @return the string, which length less than or equals {@link #ENDPOINT_NAME_MAX_LENGTH};
+     */
+    public static String formatEndpointName(String endpointName) {
+        if (endpointName.length() > ENDPOINT_NAME_MAX_LENGTH) {
+            return endpointName.substring(0, ENDPOINT_NAME_MAX_LENGTH);
+        } else {
+            return endpointName;
+        }
+    }
+
+    public static void setEndpointNameMaxLength(final int endpointNameMaxLength) {
+        ENDPOINT_NAME_MAX_LENGTH = endpointNameMaxLength;
     }
 
     private void addProfileService(List<Class> classes) {
@@ -101,21 +107,15 @@ public class CoreModule extends ModuleDefine {
         classes.add(ProfileTaskCache.class);
     }
 
-    private void addOALService(List<Class> classes) {
-        classes.add(OALEngineLoaderService.class);
-    }
-
     private void addQueryService(List<Class> classes) {
         classes.add(TopologyQueryService.class);
-        classes.add(MetricsMetadataQueryService.class);
-        classes.add(MetricsQueryService.class);
+        classes.add(MetricQueryService.class);
         classes.add(TraceQueryService.class);
         classes.add(LogQueryService.class);
         classes.add(MetadataQueryService.class);
         classes.add(AggregationQueryService.class);
         classes.add(AlarmQueryService.class);
         classes.add(TopNRecordsQueryService.class);
-        classes.add(BrowserLogQueryService.class);
     }
 
     private void addServerInterface(List<Class> classes) {
@@ -124,9 +124,9 @@ public class CoreModule extends ModuleDefine {
     }
 
     private void addInsideService(List<Class> classes) {
-        classes.add(ModelCreator.class);
+        classes.add(INewModel.class);
         classes.add(IModelManager.class);
-        classes.add(ModelManipulator.class);
+        classes.add(IModelOverride.class);
         classes.add(RemoteClientManager.class);
         classes.add(RemoteSenderService.class);
     }

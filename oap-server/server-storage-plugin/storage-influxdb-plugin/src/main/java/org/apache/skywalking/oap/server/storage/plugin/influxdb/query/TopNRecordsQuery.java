@@ -25,17 +25,13 @@ import java.util.Comparator;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.apm.util.StringUtil;
-import org.apache.skywalking.oap.server.core.analysis.IDManager;
 import org.apache.skywalking.oap.server.core.analysis.topn.TopN;
-import org.apache.skywalking.oap.server.core.query.enumeration.Order;
-import org.apache.skywalking.oap.server.core.query.input.Duration;
-import org.apache.skywalking.oap.server.core.query.input.TopNCondition;
-import org.apache.skywalking.oap.server.core.query.type.SelectedRecord;
+import org.apache.skywalking.oap.server.core.query.entity.Order;
+import org.apache.skywalking.oap.server.core.query.entity.TopNRecord;
 import org.apache.skywalking.oap.server.core.storage.query.ITopNRecordsQueryDAO;
 import org.apache.skywalking.oap.server.storage.plugin.influxdb.InfluxClient;
-import org.apache.skywalking.oap.server.storage.plugin.influxdb.InfluxConstants;
+import org.apache.skywalking.oap.server.storage.plugin.influxdb.base.RecordDAO;
 import org.influxdb.dto.QueryResult;
-import org.influxdb.querybuilder.SelectQueryImpl;
 import org.influxdb.querybuilder.WhereQueryImpl;
 
 import static org.influxdb.querybuilder.BuiltQuery.QueryBuilder.eq;
@@ -52,30 +48,27 @@ public class TopNRecordsQuery implements ITopNRecordsQueryDAO {
     }
 
     @Override
-    public List<SelectedRecord> readSampledRecords(final TopNCondition condition,
-                                                   final String valueColumnName,
-                                                   final Duration duration) throws IOException {
-        String function = InfluxConstants.SORT_ASC;
+    public List<TopNRecord> getTopNRecords(long startSecondTB, long endSecondTB, String metricName,
+                                           String serviceId, int topN, Order order) throws IOException {
+        String function = "bottom";
         // Have to re-sort here. Because the function, top()/bottom(), get the result ordered by the `time`.
-        Comparator<SelectedRecord> comparator = ASCENDING;
-        if (condition.getOrder().equals(Order.DES)) {
-            function = InfluxConstants.SORT_DES;
-            comparator = DESCENDING;
+        Comparator<TopNRecord> comparator = Comparator.comparingLong(TopNRecord::getLatency);
+        if (order.equals(Order.DES)) {
+            function = "top";
+            comparator = (a, b) -> Long.compare(b.getLatency(), a.getLatency());
         }
 
-        final WhereQueryImpl<SelectQueryImpl> query = select()
-            .function(function, valueColumnName, condition.getTopN())
+        WhereQueryImpl query = select()
+            .function(function, TopN.LATENCY, topN)
             .column(TopN.STATEMENT)
             .column(TopN.TRACE_ID)
-            .from(client.getDatabase(), condition.getName())
-            .where();
+            .from(client.getDatabase(), metricName)
+            .where()
+            .and(gte(TopN.TIME_BUCKET, startSecondTB))
+            .and(lte(TopN.TIME_BUCKET, endSecondTB));
 
-        query.and(gte(TopN.TIME_BUCKET, duration.getStartTimeBucketInSec()))
-            .and(lte(TopN.TIME_BUCKET, duration.getEndTimeBucketInSec()));
-
-        if (StringUtil.isNotEmpty(condition.getParentService())) {
-            final String serviceId = IDManager.ServiceID.buildId(condition.getParentService(), condition.isNormal());
-            query.and(eq(InfluxConstants.TagName.SERVICE_ID, serviceId));
+        if (StringUtil.isNotEmpty(serviceId)) {
+            query.and(eq(RecordDAO.TAG_SERVICE_ID, serviceId));
         }
 
         QueryResult.Series series = client.queryForSingleSeries(query);
@@ -86,23 +79,16 @@ public class TopNRecordsQuery implements ITopNRecordsQueryDAO {
             return Collections.emptyList();
         }
 
-        final List<SelectedRecord> records = new ArrayList<>();
+        final List<TopNRecord> records = new ArrayList<>();
         series.getValues().forEach(values -> {
-            SelectedRecord record = new SelectedRecord();
-            record.setValue(String.valueOf(values.get(1)));
-            record.setRefId((String) values.get(3));
-            record.setId(record.getRefId());
-            record.setName((String) values.get(2));
+            TopNRecord record = new TopNRecord();
+            record.setLatency((long) values.get(1));
+            record.setTraceId((String) values.get(3));
+            record.setStatement((String) values.get(2));
             records.add(record);
         });
 
-        records.sort(comparator); // re-sort by self, because of the result order by time.
+        Collections.sort(records, comparator); // re-sort by self, because of the result order by time.
         return records;
     }
-
-    private static final Comparator<SelectedRecord> ASCENDING = Comparator.comparingLong(
-        a -> Long.parseLong(a.getValue()));
-
-    private static final Comparator<SelectedRecord> DESCENDING = (a, b) -> Long.compare(
-        Long.parseLong(b.getValue()), Long.parseLong(a.getValue()));
 }

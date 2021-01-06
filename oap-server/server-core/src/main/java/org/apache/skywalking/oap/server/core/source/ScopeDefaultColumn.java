@@ -22,13 +22,14 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import lombok.AccessLevel;
 import lombok.Getter;
 
 /**
  * Define the default columns of source scope. These columns pass down into the persistent entity(OAL metrics entity)
  * automatically.
  */
-@Getter
+@Getter(AccessLevel.PUBLIC)
 public class ScopeDefaultColumn {
     private String fieldName;
     private String columnName;

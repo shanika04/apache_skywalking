@@ -28,12 +28,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.logging.Logger;
 
 /**
  * Init a class's static fields by a {@link Properties}, including static fields and static inner classes.
  * <p>
  */
 public class ConfigInitializer {
+    private static final Logger logger = Logger.getLogger(ConfigInitializer.class.getName());
+
     public static void initialize(Properties properties, Class<?> rootConfigType) throws IllegalAccessException {
         initNextLevel(properties, rootConfigType, new ConfigDesc());
     }
@@ -149,7 +152,7 @@ public class ConfigInitializer {
             String propertyStringKey = propertyKey.toString();
             if (propertyStringKey.startsWith(prefix) && propertyStringKey.endsWith(suffix)) {
                 String itemKey = propertyStringKey.substring(
-                        prefix.length(), propertyStringKey.length() - suffix.length());
+                    prefix.length(), propertyStringKey.length() - suffix.length());
                 Object keyObj;
                 Object valueObj;
 

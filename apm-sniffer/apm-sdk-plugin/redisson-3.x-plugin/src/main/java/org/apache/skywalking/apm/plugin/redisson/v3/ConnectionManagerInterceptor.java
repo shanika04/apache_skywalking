@@ -18,6 +18,9 @@
 
 package org.apache.skywalking.apm.plugin.redisson.v3;
 
+import java.lang.reflect.Method;
+import java.net.URI;
+import java.util.Collection;
 import org.apache.skywalking.apm.agent.core.context.util.PeerFormat;
 import org.apache.skywalking.apm.agent.core.logging.api.ILog;
 import org.apache.skywalking.apm.agent.core.logging.api.LogManager;
@@ -28,27 +31,22 @@ import org.apache.skywalking.apm.plugin.redisson.v3.util.ClassUtil;
 import org.redisson.config.Config;
 import org.redisson.connection.ConnectionManager;
 
-import java.lang.reflect.Method;
-import java.net.URI;
-import java.util.Collection;
-
 public class ConnectionManagerInterceptor implements InstanceMethodsAroundInterceptor {
 
-    private static final ILog LOGGER = LogManager.getLogger(ConnectionManagerInterceptor.class);
+    private static final ILog logger = LogManager.getLogger(ConnectionManagerInterceptor.class);
 
     @Override
     public void beforeMethod(EnhancedInstance objInst, Method method, Object[] allArguments, Class<?>[] argumentsTypes,
-                             MethodInterceptResult result) throws Throwable {
+        MethodInterceptResult result) throws Throwable {
     }
 
     @Override
     public Object afterMethod(EnhancedInstance objInst, Method method, Object[] allArguments, Class<?>[] argumentsTypes,
-                              Object ret) throws Throwable {
+        Object ret) throws Throwable {
         try {
             ConnectionManager connectionManager = (ConnectionManager) objInst;
             Config config = connectionManager.getCfg();
 
-            Object singleServerConfig = ClassUtil.getObjectField(config, "singleServerConfig");
             Object sentinelServersConfig = ClassUtil.getObjectField(config, "sentinelServersConfig");
             Object masterSlaveServersConfig = ClassUtil.getObjectField(config, "masterSlaveServersConfig");
             Object clusterServersConfig = ClassUtil.getObjectField(config, "clusterServersConfig");
@@ -57,12 +55,6 @@ public class ConnectionManagerInterceptor implements InstanceMethodsAroundInterc
             StringBuilder peer = new StringBuilder();
             EnhancedInstance retInst = (EnhancedInstance) ret;
 
-            if (singleServerConfig != null) {
-                Object singleAddress = ClassUtil.getObjectField(singleServerConfig, "address");
-                peer.append(getPeer(singleAddress));
-                retInst.setSkyWalkingDynamicField(PeerFormat.shorten(peer.toString()));
-                return ret;
-            }
             if (sentinelServersConfig != null) {
                 appendAddresses(peer, (Collection) ClassUtil.getObjectField(sentinelServersConfig, "sentinelAddresses"));
                 retInst.setSkyWalkingDynamicField(PeerFormat.shorten(peer.toString()));
@@ -86,7 +78,7 @@ public class ConnectionManagerInterceptor implements InstanceMethodsAroundInterc
                 return ret;
             }
         } catch (Exception e) {
-            LOGGER.warn("redisClient set peer error: ", e);
+            logger.warn("redisClient set peer error: ", e);
         }
         return ret;
     }
@@ -106,20 +98,20 @@ public class ConnectionManagerInterceptor implements InstanceMethodsAroundInterc
      * @param obj Address object
      * @return the sw peer
      */
-    static String getPeer(Object obj) {
+    private String getPeer(Object obj) {
         if (obj instanceof String) {
             return ((String) obj).replace("redis://", "");
         } else if (obj instanceof URI) {
             URI uri = (URI) obj;
             return uri.getHost() + ":" + uri.getPort();
         } else {
-            LOGGER.warn("redisson not support this version");
+            logger.warn("redisson not support this version");
             return null;
         }
     }
 
     @Override
     public void handleMethodException(EnhancedInstance objInst, Method method, Object[] allArguments,
-                                      Class<?>[] argumentsTypes, Throwable t) {
+        Class<?>[] argumentsTypes, Throwable t) {
     }
 }

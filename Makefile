@@ -28,16 +28,16 @@ init:
 .PHONY: build.all build.agent build.backend build.ui build.docker
 
 build.all:
-	cd $(SW_ROOT) && ./mvnw --batch-mode clean package -Dmaven.test.skip=$(SKIP_TEST)
+	cd $(SW_ROOT) && ./mvnw clean package -Dmaven.test.skip=$(SKIP_TEST)
 
 build.agent:
-	cd $(SW_ROOT) && ./mvnw --batch-mode clean package -Dmaven.test.skip=$(SKIP_TEST) -Pagent,dist
+	cd $(SW_ROOT) && ./mvnw clean package -Dmaven.test.skip=$(SKIP_TEST) -Pagent,dist
 
 build.backend:
-	cd $(SW_ROOT) && ./mvnw --batch-mode clean package -Dmaven.test.skip=$(SKIP_TEST) -Pbackend,dist
+	cd $(SW_ROOT) && ./mvnw clean package -Dmaven.test.skip=$(SKIP_TEST) -Pbackend,dist
 
 build.ui:
-	cd $(SW_ROOT) && ./mvnw --batch-mode clean package -Dmaven.test.skip=$(SKIP_TEST) -Pui,dist
+	cd $(SW_ROOT) && ./mvnw clean package -Dmaven.test.skip=$(SKIP_TEST) -Pui,dist
 
 DOCKER_BUILD_TOP:=${SW_OUT}/docker_build
 
@@ -58,22 +58,18 @@ DOCKER_TARGETS:=docker.oap docker.ui
 docker.all: $(DOCKER_TARGETS)
 
 ifeq ($(ES_VERSION),es7)
-  DIST_NAME := apache-skywalking-apm-bin-es7
+docker.oap: $(SW_OUT)/apache-skywalking-apm-bin-es7.tar.gz
+docker.oap: $(SW_ROOT)/docker/oap-es7/Dockerfile.oap
+docker.oap: $(SW_ROOT)/docker/oap-es7/docker-entrypoint.sh
+docker.oap: $(SW_ROOT)/docker/oap-es7/log4j2.xml
+		$(DOCKER_RULE)
 else
-  DIST_NAME := apache-skywalking-apm-bin
-endif
-
-ifneq ($(SW_OAP_BASE_IMAGE),)
-  BUILD_ARGS := $(BUILD_ARGS) --build-arg BASE_IMAGE=$(SW_OAP_BASE_IMAGE)
-endif
-
-BUILD_ARGS := $(BUILD_ARGS) --build-arg DIST_NAME=$(DIST_NAME)
-
-docker.oap: $(SW_OUT)/$(DIST_NAME).tar.gz
+docker.oap: $(SW_OUT)/apache-skywalking-apm-bin.tar.gz
 docker.oap: $(SW_ROOT)/docker/oap/Dockerfile.oap
 docker.oap: $(SW_ROOT)/docker/oap/docker-entrypoint.sh
 docker.oap: $(SW_ROOT)/docker/oap/log4j2.xml
 		$(DOCKER_RULE)
+endif
 
 docker.ui: $(SW_OUT)/apache-skywalking-apm-bin.tar.gz
 docker.ui: $(SW_ROOT)/docker/ui/Dockerfile.ui

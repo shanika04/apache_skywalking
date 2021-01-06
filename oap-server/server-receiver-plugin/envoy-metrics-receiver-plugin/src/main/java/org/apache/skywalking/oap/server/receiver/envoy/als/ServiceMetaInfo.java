@@ -19,9 +19,8 @@
 package org.apache.skywalking.oap.server.receiver.envoy.als;
 
 import java.util.List;
-import lombok.EqualsAndHashCode;
+import java.util.Objects;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
@@ -29,16 +28,13 @@ import lombok.ToString;
 @Getter
 @Setter
 @ToString
-@NoArgsConstructor
-@EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ServiceMetaInfo {
-    @EqualsAndHashCode.Include
     private String serviceName;
-
-    @EqualsAndHashCode.Include
     private String serviceInstanceName;
-
     private List<KeyValue> tags;
+
+    public ServiceMetaInfo() {
+    }
 
     public ServiceMetaInfo(String serviceName, String serviceInstanceName) {
         this.serviceName = serviceName;
@@ -47,12 +43,26 @@ public class ServiceMetaInfo {
 
     @Setter
     @Getter
-    @ToString
     @RequiredArgsConstructor
+    @ToString
     public static class KeyValue {
         private final String key;
-
         private final String value;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+        ServiceMetaInfo info = (ServiceMetaInfo) o;
+        return Objects.equals(serviceName, info.serviceName) && Objects.equals(serviceInstanceName, info.serviceInstanceName);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(serviceName, serviceInstanceName);
     }
 
     public static final ServiceMetaInfo UNKNOWN = new ServiceMetaInfo("UNKNOWN", "UNKNOWN");

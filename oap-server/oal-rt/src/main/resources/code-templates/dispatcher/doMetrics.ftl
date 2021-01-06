@@ -1,9 +1,9 @@
-private void do${metricsName}(${sourcePackage}${sourceName} source) {
-${metricsClassPackage}${metricsName}Metrics metrics = new ${metricsClassPackage}${metricsName}Metrics();
+private void do${metricsName}(org.apache.skywalking.oap.server.core.source.${sourceName} source) {
+org.apache.skywalking.oal.rt.metrics.${metricsName}Metrics metrics = new org.apache.skywalking.oal.rt.metrics.${metricsName}Metrics();
 
 <#if filterExpressions??>
     <#list filterExpressions as filterExpression>
-        if (!new ${filterExpression.expressionObject}().match(${filterExpression.left}, ${filterExpression.right})) {
+        if (!new org.apache.skywalking.oap.server.core.analysis.metrics.expression.${filterExpression.expressionObject}().match(${filterExpression.left}, ${filterExpression.right})) {
         return;
         }
     </#list>
@@ -18,7 +18,7 @@ metrics.${entryMethod.methodName}(
     <#if entryMethod.argTypes[arg_index] < 3>
         ${arg}
     <#else>
-        new ${arg.expressionObject}().match(${arg.left}, ${arg.right})
+        new org.apache.skywalking.oap.server.core.analysis.metrics.expression.${arg.expressionObject}().match(${arg.left}, ${arg.right})
     </#if><#if arg_has_next>, </#if>
 </#list>);
 

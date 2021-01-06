@@ -29,7 +29,6 @@ import org.apache.curator.retry.ExponentialBackoffRetry;
 import org.apache.curator.x.discovery.ServiceDiscovery;
 import org.apache.curator.x.discovery.ServiceDiscoveryBuilder;
 import org.apache.skywalking.apm.util.StringUtil;
-import org.apache.skywalking.oap.server.core.CoreModule;
 import org.apache.skywalking.oap.server.core.cluster.ClusterModule;
 import org.apache.skywalking.oap.server.core.cluster.ClusterNodesQuery;
 import org.apache.skywalking.oap.server.core.cluster.ClusterRegister;
@@ -50,14 +49,13 @@ import org.slf4j.LoggerFactory;
  */
 public class ClusterModuleZookeeperProvider extends ModuleProvider {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClusterModuleZookeeperProvider.class);
+    private static final Logger logger = LoggerFactory.getLogger(ClusterModuleZookeeperProvider.class);
 
     private static final String BASE_PATH = "/skywalking";
 
     private final ClusterModuleZookeeperConfig config;
     private CuratorFramework client;
     private ServiceDiscovery<RemoteInstance> serviceDiscovery;
-    private ZookeeperCoordinator coordinator;
 
     public ClusterModuleZookeeperProvider() {
         super();
@@ -126,13 +124,15 @@ public class ClusterModuleZookeeperProvider extends ModuleProvider {
                                                   .watchInstances(true)
                                                   .serializer(new SWInstanceSerializer())
                                                   .build();
+
+        ZookeeperCoordinator coordinator;
         try {
             client.start();
             client.blockUntilConnected();
             serviceDiscovery.start();
-            coordinator = new ZookeeperCoordinator(getManager(), config, serviceDiscovery);
+            coordinator = new ZookeeperCoordinator(config, serviceDiscovery);
         } catch (Exception e) {
-            LOGGER.error(e.getMessage(), e);
+            logger.error(e.getMessage(), e);
             throw new ModuleStartException(e.getMessage(), e);
         }
 
@@ -150,6 +150,6 @@ public class ClusterModuleZookeeperProvider extends ModuleProvider {
 
     @Override
     public String[] requiredModules() {
-        return new String[]{CoreModule.NAME};
+        return new String[0];
     }
 }

@@ -52,7 +52,7 @@ public class HttpClientWriteRequestInterceptor implements InstanceMethodsAroundI
         CarrierItem next = contextCarrier.items();
         while (next.hasNext()) {
             next = next.next();
-            headers.set(next.getHeadKey(), next.getHeadValue());
+            headers.add(next.getHeadKey(), next.getHeadValue());
         }
     }
 
@@ -66,7 +66,7 @@ public class HttpClientWriteRequestInterceptor implements InstanceMethodsAroundI
     public void handleMethodException(EnhancedInstance objInst, Method method, Object[] allArguments,
         Class<?>[] argumentsTypes, Throwable t) {
         AbstractSpan span = ContextManager.activeSpan();
-        span.log(t);
+        span.errorOccurred().log(t);
     }
 
     private String getPeer(URL url) {

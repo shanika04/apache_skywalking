@@ -27,8 +27,6 @@ public interface ILog {
 
     void info(String format, Object... arguments);
 
-    void info(Throwable t, String format, Object... arguments);
-
     void warn(String format, Object... arguments);
 
     void warn(Throwable e, String format, Object... arguments);
@@ -45,8 +43,6 @@ public interface ILog {
 
     boolean isErrorEnable();
 
-    boolean isTraceEnabled();
-
     void debug(String format);
 
     void debug(String format, Object... arguments);
@@ -54,10 +50,4 @@ public interface ILog {
     void debug(Throwable t, String format, Object... arguments);
 
     void error(String format);
-
-    void trace(String format);
-
-    void trace(String format, Object... arguments);
-
-    void trace(Throwable t, String format, Object... arguments);
 }

@@ -28,12 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.oap.server.configuration.api.ConfigChangeWatcher;
 import org.apache.skywalking.oap.server.core.Const;
 import org.apache.skywalking.oap.server.core.alarm.AlarmModule;
-import org.apache.skywalking.oap.server.core.alarm.provider.dingtalk.DingtalkSettings;
-import org.apache.skywalking.oap.server.core.alarm.provider.expression.Expression;
-import org.apache.skywalking.oap.server.core.alarm.provider.expression.ExpressionContext;
 import org.apache.skywalking.oap.server.core.alarm.provider.grpc.GRPCAlarmSetting;
-import org.apache.skywalking.oap.server.core.alarm.provider.slack.SlackSettings;
-import org.apache.skywalking.oap.server.core.alarm.provider.wechat.WechatSettings;
 import org.apache.skywalking.oap.server.library.module.ModuleProvider;
 
 /**
@@ -49,22 +44,19 @@ public class AlarmRulesWatcher extends ConfigChangeWatcher {
     private volatile Map<AlarmRule, RunningRule> alarmRuleRunningRuleMap;
     private volatile Rules rules;
     private volatile String settingsString;
-    @Getter
-    private final CompositeRuleEvaluator compositeRuleEvaluator;
 
     public AlarmRulesWatcher(Rules defaultRules, ModuleProvider provider) {
         super(AlarmModule.NAME, provider, "alarm-settings");
         this.runningContext = new HashMap<>();
         this.alarmRuleRunningRuleMap = new HashMap<>();
         this.settingsString = Const.EMPTY_STRING;
-        Expression expression = new Expression(new ExpressionContext());
-        this.compositeRuleEvaluator = new CompositeRuleEvaluator(expression);
+
         notify(defaultRules);
     }
 
     @Override
     public void notify(ConfigChangeEvent value) {
-        if (value.getEventType().equals(EventType.DELETE)) {
+        if (value.getEventType() == EventType.DELETE) {
             settingsString = Const.EMPTY_STRING;
             notify(new Rules());
         } else {
@@ -110,10 +102,6 @@ public class AlarmRulesWatcher extends ConfigChangeWatcher {
         return this.rules.getRules();
     }
 
-    public List<CompositeAlarmRule> getCompositeRules() {
-        return this.rules.getCompositeRules();
-    }
-
     public List<String> getWebHooks() {
         return this.rules.getWebhooks();
     }
@@ -121,17 +109,4 @@ public class AlarmRulesWatcher extends ConfigChangeWatcher {
     public GRPCAlarmSetting getGrpchookSetting() {
         return this.rules.getGrpchookSetting();
     }
-
-    public SlackSettings getSlackSettings() {
-        return this.rules.getSlacks();
-    }
-
-    public WechatSettings getWechatSettings() {
-        return this.rules.getWecchats();
-    }
-
-    public DingtalkSettings getDingtalkSettings() {
-        return this.rules.getDingtalks();
-    }
-
 }

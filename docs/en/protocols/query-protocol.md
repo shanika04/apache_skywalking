@@ -71,7 +71,7 @@ extend type Query {
 }
 ```
 
-Metrics are defined in the `config/oal/*.oal` files.
+Metrics are defined in the [official_analysis.oal](../../../oap-server/server-bootstrap/src/main/resources/official_analysis.oal).
 
 ### Aggregation
 Aggregation query means the metrics data need a secondary aggregation in query stage, which makes the query 

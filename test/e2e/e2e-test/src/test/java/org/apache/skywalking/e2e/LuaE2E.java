@@ -18,7 +18,6 @@
 
 package org.apache.skywalking.e2e;
 
-import java.net.URL;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.e2e.annotation.ContainerHostAndPort;
@@ -52,21 +51,16 @@ import org.apache.skywalking.e2e.topo.TopoQuery;
 import org.apache.skywalking.e2e.trace.Trace;
 import org.apache.skywalking.e2e.trace.TracesMatcher;
 import org.apache.skywalking.e2e.trace.TracesQuery;
-import org.junit.Assert;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.springframework.http.ResponseEntity;
 import org.testcontainers.containers.DockerComposeContainer;
 
 import static org.apache.skywalking.e2e.metrics.MetricsMatcher.verifyMetrics;
-import static org.apache.skywalking.e2e.metrics.MetricsMatcher.verifyPercentileMetrics;
 import static org.apache.skywalking.e2e.metrics.MetricsQuery.ALL_ENDPOINT_METRICS;
-import static org.apache.skywalking.e2e.metrics.MetricsQuery.ALL_ENDPOINT_MULTIPLE_LINEAR_METRICS;
 import static org.apache.skywalking.e2e.metrics.MetricsQuery.ALL_INSTANCE_METRICS;
 import static org.apache.skywalking.e2e.metrics.MetricsQuery.ALL_SERVICE_INSTANCE_RELATION_CLIENT_METRICS;
 import static org.apache.skywalking.e2e.metrics.MetricsQuery.ALL_SERVICE_INSTANCE_RELATION_SERVER_METRICS;
 import static org.apache.skywalking.e2e.metrics.MetricsQuery.ALL_SERVICE_METRICS;
-import static org.apache.skywalking.e2e.metrics.MetricsQuery.ALL_SERVICE_MULTIPLE_LINEAR_METRICS;
 import static org.apache.skywalking.e2e.metrics.MetricsQuery.ALL_SERVICE_RELATION_CLIENT_METRICS;
 import static org.apache.skywalking.e2e.metrics.MetricsQuery.ALL_SERVICE_RELATION_SERVER_METRICS;
 import static org.apache.skywalking.e2e.utils.Yamls.load;
@@ -84,29 +78,21 @@ public class LuaE2E extends SkyWalkingTestAdapter {
     private HostAndPort swWebappHostPort;
 
     @SuppressWarnings("unused")
-    @ContainerHostAndPort(name = "provider-entry", port = 9090)
-    private HostAndPort entryProvider;
+    @ContainerHostAndPort(name = "nginx", port = 8080)
+    private HostAndPort nginxHostPort;
 
     private final String nginxServiceName = "User_Service_Name";
-    private final String entryServiceName = "e2e-service-entry-provider";
 
     @BeforeAll
     public void setUp() throws Exception {
         queryClient(swWebappHostPort);
 
-        trafficController(entryProvider, "/nginx/entry/info");
+        trafficController(nginxHostPort, "/nginx/info");
     }
 
     @AfterAll
     public void tearDown() {
         trafficController.stop();
-    }
-
-    @RetryableTest
-    void correlation() throws Exception {
-        final URL url = new URL("http", entryProvider.host(), entryProvider.port(), "/nginx/entry/info");
-        final ResponseEntity<String> response = restTemplate.postForEntity(url.toURI(), trafficData, String.class);
-        Assert.assertEquals(response.getBody(), "entry_value_nginx_value");
     }
 
     @RetryableTest
@@ -158,8 +144,8 @@ public class LuaE2E extends SkyWalkingTestAdapter {
             new ServiceInstanceTopologyQuery().stepByMinute()
                                               .start(startTime.minusDays(1))
                                               .end(now())
-                                              .clientServiceId("ZTJlLXNlcnZpY2UtZW50cnktcHJvdmlkZXI=.1")
-                                              .serverServiceId("VXNlcl9TZXJ2aWNlX05hbWU=.1"));
+                                              .clientServiceId("1")
+                                              .serverServiceId("4"));
 
         LOGGER.info("topology: {}", topology);
 
@@ -191,10 +177,8 @@ public class LuaE2E extends SkyWalkingTestAdapter {
 
         if (nginxServiceName.equals(service.getLabel())) {
             load("expected/lua/nginxEndpoints.yml").as(EndpointsMatcher.class).verify(endpoints);
-        } else if (entryServiceName.equals(service.getLabel())) {
-            load("expected/lua/endpoints-entry.yml").as(EndpointsMatcher.class).verify(endpoints);
         } else {
-            load("expected/lua/endpoints-end.yml").as(EndpointsMatcher.class).verify(endpoints);
+            load("expected/lua/endpoints.yml").as(EndpointsMatcher.class).verify(endpoints);
         }
 
         return endpoints;
@@ -222,7 +206,7 @@ public class LuaE2E extends SkyWalkingTestAdapter {
 
     private void verifyEndpointsMetrics(Endpoints endpoints) throws Exception {
         for (Endpoint endpoint : endpoints.getEndpoints()) {
-            if (!endpoint.getLabel().equals("/nginx/end/info") && !endpoint.getLabel().equals("/nginx/info")) {
+            if (!endpoint.getLabel().equals("/info") || !endpoint.getLabel().equals("/nginx/info")) {
                 continue;
             }
             for (final String metricName : ALL_ENDPOINT_METRICS) {
@@ -242,9 +226,6 @@ public class LuaE2E extends SkyWalkingTestAdapter {
 
                 LOGGER.info("{}: {}", metricName, metrics);
             }
-            for (String metricName : ALL_ENDPOINT_MULTIPLE_LINEAR_METRICS) {
-                verifyPercentileMetrics(graphql, metricName, endpoint.getKey(), startTime);
-            }
         }
     }
 
@@ -261,9 +242,6 @@ public class LuaE2E extends SkyWalkingTestAdapter {
             instanceRespTimeMatcher.setValue(greaterThanZero);
             instanceRespTimeMatcher.verify(serviceMetrics);
             LOGGER.info("{}: {}", metricName, serviceMetrics);
-        }
-        for (String metricName : ALL_SERVICE_MULTIPLE_LINEAR_METRICS) {
-            verifyPercentileMetrics(graphql, metricName, service.getKey(), startTime);
         }
     }
 

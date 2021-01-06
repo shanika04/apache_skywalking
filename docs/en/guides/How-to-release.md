@@ -65,8 +65,10 @@ but just failure. Run `gpg --sign xxx` to any file could remember the password f
 ```shell
 export RELEASE_VERSION=x.y.z (example: RELEASE_VERSION=5.0.0-alpha)
 cd tools/releasing
-bash create_source_release.sh
+sh create_source_release.sh
 ```
+
+**NOTICE**, `create_source_release.sh` is just suitable for MacOS. Welcome anyone to contribute Windows bat and Linux shell. 
 
 This scripts should do following things
 1. Use `v` + `RELEASE_VERSION` as tag to clone the codes.
@@ -113,7 +115,7 @@ account if a quality vote is called for this build.
 
 Release notes:
 
- * https://github.com/apache/skywalking/blob/master/changes/changes-x.y.z.md
+ * https://github.com/apache/skywalking/blob/master/CHANGES.md
 
 Release Candidate:
 
@@ -167,7 +169,7 @@ This is a call for vote to release Apache SkyWalking version x.y.z.
 
 Release notes:
 
- * https://github.com/apache/skywalking/blob/master/changes/changes-x.y.z.md
+ * https://github.com/apache/skywalking/blob/x.y.z/CHANGES.md
 
 Release Candidate:
 
@@ -216,7 +218,6 @@ All PMC members and committers should check these before vote +1.
 are in `https://dist.apache.org/repos/dist/dev/skywalking/x.y.z` with .asc, .sha512
 1. `LICENSE` and `NOTICE` are in Source code and distribution package.
 1. Check `shasum -c apache-skywalking-apm-x.y.z-src.tgz.sha512`
-1. Check `gpg --verify apache-skywalking-apm-x.y.z-src.tgz.asc apache-skywalking-apm-x.y.z-src.tgz`
 1. Build distribution from source code package (apache-skywalking-x.y.z-src.tar.gz) by following this [doc](https://github.com/apache/skywalking/blob/master/docs/en/guides/How-to-build.md#build-from-apache-source-code-release).
 1. Apache RAT check. Run `./mvnw apache-rat:check`. (No binary in source codes)
 
@@ -265,7 +266,7 @@ version a.b.c(last release). The notable changes since x.y.z include:
 3. ...
 
 Please refer to the change log for the complete list of changes:
-https://github.com/apache/skywalking/blob/master/changes/changes-x.y.z.md
+https://github.com/apache/skywalking/blob/vx.y.z/CHANGES.md
 
 Apache SkyWalking website:
 http://skywalking.apache.org/

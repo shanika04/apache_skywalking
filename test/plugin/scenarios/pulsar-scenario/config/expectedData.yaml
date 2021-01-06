@@ -67,7 +67,7 @@ segmentItems:
       refs:
       - {parentEndpoint: /case/pulsar-case, networkAddress: '', refType: CrossThread,
         parentSpanId: 1, parentTraceSegmentId: not null, parentServiceInstance: not
-          null, parentService: pulsar-scenario, traceId: not null}
+          null, parentService: not null, traceId: not null}
       skipAnalysis: 'false'
   - segmentId: not null
     spans:
@@ -83,11 +83,10 @@ segmentItems:
       spanType: Entry
       peer: ''
       tags:
-        - {key: transmission.latency, value: not null}
-        - {key: mq.broker, value: not null}
-        - {key: mq.topic, value: test}
+      - {key: mq.broker, value: not null}
+      - {key: mq.topic, value: test}
       refs:
       - {parentEndpoint: /case/pulsar-case, networkAddress: not null, refType: CrossProcess,
         parentSpanId: 1, parentTraceSegmentId: not null, parentServiceInstance: not
-          null, parentService: pulsar-scenario, traceId: not null}
+          null, parentService: not null, traceId: not null}
       skipAnalysis: 'false'

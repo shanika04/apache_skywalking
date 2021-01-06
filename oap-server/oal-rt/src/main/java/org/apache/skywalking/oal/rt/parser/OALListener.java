@@ -18,7 +18,6 @@
 
 package org.apache.skywalking.oal.rt.parser;
 
-import java.util.Arrays;
 import java.util.List;
 import org.antlr.v4.runtime.misc.NotNull;
 import org.apache.skywalking.oal.rt.grammar.OALParser;
@@ -32,12 +31,9 @@ public class OALListener extends OALParserBaseListener {
 
     private ConditionExpression conditionExpression;
 
-    private final String sourcePackage;
-
-    public OALListener(OALScripts scripts, String sourcePackage) {
+    public OALListener(OALScripts scripts) {
         this.results = scripts.getMetricsStmts();
         this.collection = scripts.getDisableCollection();
-        this.sourcePackage = sourcePackage;
     }
 
     @Override
@@ -60,7 +56,7 @@ public class OALListener extends OALParserBaseListener {
 
     @Override
     public void enterSourceAttribute(OALParser.SourceAttributeContext ctx) {
-        current.getSourceAttribute().add(ctx.getText());
+        current.setSourceAttribute(ctx.getText());
     }
 
     @Override
@@ -106,7 +102,7 @@ public class OALListener extends OALParserBaseListener {
     ////////////
     @Override
     public void enterConditionAttribute(OALParser.ConditionAttributeContext ctx) {
-        conditionExpression.getAttributes().add(ctx.getText());
+        conditionExpression.setAttribute(ctx.getText());
     }
 
     @Override
@@ -140,46 +136,6 @@ public class OALListener extends OALParserBaseListener {
     }
 
     @Override
-    public void enterNotEqualMatch(final OALParser.NotEqualMatchContext ctx) {
-        conditionExpression.setExpressionType("notEqualMatch");
-    }
-
-    @Override
-    public void enterBooleanNotEqualMatch(final OALParser.BooleanNotEqualMatchContext ctx) {
-        conditionExpression.setExpressionType("booleanNotEqualMatch");
-    }
-
-    @Override
-    public void enterLikeMatch(final OALParser.LikeMatchContext ctx) {
-        conditionExpression.setExpressionType("likeMatch");
-    }
-
-    @Override
-    public void enterContainMatch(final OALParser.ContainMatchContext ctx) {
-        conditionExpression.setExpressionType("containMatch");
-    }
-
-    @Override
-    public void enterNotContainMatch(final OALParser.NotContainMatchContext ctx) {
-        conditionExpression.setExpressionType("notContainMatch");
-    }
-
-    @Override
-    public void enterInMatch(final OALParser.InMatchContext ctx) {
-        conditionExpression.setExpressionType("inMatch");
-    }
-
-    @Override
-    public void enterMultiConditionValue(final OALParser.MultiConditionValueContext ctx) {
-        conditionExpression.enterMultiConditionValue();
-    }
-
-    @Override
-    public void exitMultiConditionValue(final OALParser.MultiConditionValueContext ctx) {
-        conditionExpression.exitMultiConditionValue();
-    }
-
-    @Override
     public void enterBooleanConditionValue(OALParser.BooleanConditionValueContext ctx) {
         enterConditionValue(ctx.getText());
     }
@@ -202,9 +158,9 @@ public class OALListener extends OALParserBaseListener {
     private void enterConditionValue(String value) {
         if (value.split("\\.").length == 2 && !value.startsWith("\"")) {
             // Value is an enum.
-            value = sourcePackage + value;
+            value = "org.apache.skywalking.oap.server.core.source." + value;
         }
-        conditionExpression.addValue(value);
+        conditionExpression.setValue(value);
     }
 
     /////////////
@@ -214,10 +170,10 @@ public class OALListener extends OALParserBaseListener {
     @Override
     public void enterLiteralExpression(OALParser.LiteralExpressionContext ctx) {
         if (ctx.IDENTIFIER() == null) {
-            current.addFuncArg(new Argument(EntryMethod.LITERAL_TYPE, Arrays.asList(ctx.getText())));
+            current.addFuncArg(new Argument(EntryMethod.LITERAL_TYPE, ctx.getText()));
             return;
         }
-        current.addFuncArg(new Argument(EntryMethod.IDENTIFIER_TYPE, Arrays.asList(ctx.getText().split("\\."))));
+        current.addFuncArg(new Argument(EntryMethod.IDENTIFIER_TYPE, ctx.getText()));
     }
 
     private String metricsNameFormat(String source) {

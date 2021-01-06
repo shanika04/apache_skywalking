@@ -35,8 +35,6 @@ import lombok.extern.slf4j.Slf4j;
 public final class TrafficController {
     @Builder.Default
     private final int interval = 1000;
-    @Builder.Default
-    private final boolean logResult = true;
     private final String host;
     private final Callable<?> sender;
 
@@ -53,9 +51,7 @@ public final class TrafficController {
             future = executor.scheduleAtFixedRate(() -> {
                 try {
                     final Object result = sender.call();
-                    if (logResult) {
-                        LOGGER.info("response: {}", result);
-                    }
+                    LOGGER.info("response: {}", result);
                 } catch (final Exception e) {
                     LOGGER.error("failed to send traffic", e);
                 }

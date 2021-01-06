@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/postgresql-scenario/case")
 public class CaseController {
 
-    private static final Logger LOGGER = LogManager.getLogger(CaseController.class);
+    private static Logger logger = LogManager.getLogger(CaseController.class);
 
     @Autowired
     PostgresqlConfig postgresqlConfig;
@@ -42,14 +42,14 @@ public class CaseController {
             sqlExecute = new SQLExecutor(postgresqlConfig);
             sqlExecute.checkPG(ConstSql.TEST_SQL);
         } catch (SQLException e) {
-            LOGGER.error("Failed to execute sql.", e);
+            logger.error("Failed to execute sql.", e);
             throw e;
         } finally {
             if (sqlExecute != null) {
                 try {
                     sqlExecute.closeConnection();
                 } catch (SQLException e) {
-                    LOGGER.error("Failed to close connection.", e);
+                    logger.error("Failed to close connection.", e);
                 }
             }
         }
@@ -58,7 +58,7 @@ public class CaseController {
 
     @GetMapping("/postgres")
     public String postgres() throws SQLException {
-        LOGGER.info("Begin to start execute sql");
+        logger.info("Begin to start execute sql");
         SQLExecutor sqlExecute = null;
         try {
             sqlExecute = new SQLExecutor(postgresqlConfig);
@@ -66,14 +66,14 @@ public class CaseController {
             sqlExecute.insertData(ConstSql.INSERT_DATA_SQL, "1", "1");
             sqlExecute.dropTable(ConstSql.DROP_TABLE_SQL);
         } catch (SQLException e) {
-            LOGGER.error("Failed to execute sql.", e);
+            logger.error("Failed to execute sql.", e);
             throw e;
         } finally {
             if (sqlExecute != null) {
                 try {
                     sqlExecute.closeConnection();
                 } catch (SQLException e) {
-                    LOGGER.error("Failed to close connection.", e);
+                    logger.error("Failed to close connection.", e);
                 }
             }
         }

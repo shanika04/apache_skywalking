@@ -37,14 +37,14 @@ public abstract class LongAvgMetrics extends Metrics implements LongValueHolder 
     @Getter
     @Setter
     @Column(columnName = SUMMATION, storageOnly = true)
-    protected long summation;
+    private long summation;
     @Getter
     @Setter
     @Column(columnName = COUNT, storageOnly = true)
-    protected long count;
+    private long count;
     @Getter
     @Setter
-    @Column(columnName = VALUE, dataType = Column.ValueDataType.COMMON_VALUE, function = Function.Avg)
+    @Column(columnName = VALUE, isValue = true, function = Function.Avg)
     private long value;
 
     @Entrance

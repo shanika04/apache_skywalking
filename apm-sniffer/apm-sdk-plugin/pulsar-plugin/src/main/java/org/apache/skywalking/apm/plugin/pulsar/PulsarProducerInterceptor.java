@@ -65,7 +65,6 @@ public class PulsarProducerInterceptor implements InstanceMethodsAroundIntercept
                 .getServiceUrl());
             Tags.MQ_BROKER.set(activeSpan, requiredInfo.getServiceUrl());
             Tags.MQ_TOPIC.set(activeSpan, topicName);
-            contextCarrier.extensionInjector().injectSendingTimestamp();
             SpanLayer.asMQ(activeSpan);
             activeSpan.setComponent(ComponentsDefine.PULSAR_PRODUCER);
             CarrierItem next = contextCarrier.items();
@@ -105,7 +104,7 @@ public class PulsarProducerInterceptor implements InstanceMethodsAroundIntercept
     public void handleMethodException(EnhancedInstance objInst, Method method, Object[] allArguments,
         Class<?>[] argumentsTypes, Throwable t) {
         if (allArguments[0] != null) {
-            ContextManager.activeSpan().log(t);
+            ContextManager.activeSpan().errorOccurred().log(t);
         }
     }
 }

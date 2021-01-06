@@ -43,9 +43,9 @@ public class MeshDataMock {
             meshObserver.onNext(ServiceMeshMetric.newBuilder()
                                                  .setSourceServiceName("e2e-test-source-service")
                                                  .setSourceServiceInstance("e2e-test-source-service-instance")
-                                                 .setDestServiceName("Extra model column are the column defined by in the codes, These columns of model are not required logically in aggregation or further query,")
-                                                 .setDestServiceInstance("Extra model column are the column defined by in the codes, These columns of model are not required logically in aggregation or further query,")
-                                                 .setEndpoint("Extra model column are the column defined by in the codes, These columns of model are not required logically in aggregation or further query,")
+                                                 .setDestServiceName("e2e-test-dest-service")
+                                                 .setDestServiceInstance("e2e-test-dest-service-instance")
+                                                 .setEndpoint("e2e/test")
                                                  .setStartTime(System.currentTimeMillis() - 1000L)
                                                  .setEndTime(System.currentTimeMillis() - 500L + i)
                                                  .setLatency(2000)
@@ -53,7 +53,6 @@ public class MeshDataMock {
                                                  .setStatus(true)
                                                  .setProtocol(Protocol.HTTP)
                                                  .setDetectPoint(DetectPoint.server)
-                                                 .setInternalErrorCode("rate_limited")
                                                  .build());
         }
         meshObserver.onCompleted();

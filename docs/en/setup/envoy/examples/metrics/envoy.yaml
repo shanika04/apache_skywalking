@@ -39,9 +39,6 @@ node:
   metadata:
     skywalking: iscool
     envoy: isawesome
-    LABELS:
-      app: test-app
-    NAME: service-instance-name
 
 static_resources:
   listeners:
@@ -85,7 +82,7 @@ static_resources:
               - endpoint:
                   address:
                     socket_address:
-                      address: host.docker.internal
+                      address: skywalking
                       port_value: 11800
 
     - name: service_google

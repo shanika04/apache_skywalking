@@ -19,8 +19,6 @@
 package org.apache.skywalking.oap.server.core.analysis.metrics;
 
 import java.util.Comparator;
-import java.util.List;
-import java.util.stream.IntStream;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.skywalking.oap.server.core.analysis.metrics.annotation.Arg;
@@ -34,7 +32,7 @@ import org.apache.skywalking.oap.server.core.storage.annotation.Column;
  * multiple P50/75/90/95/99 values once for all.
  */
 @MetricsFunction(functionName = "percentile")
-public abstract class PercentileMetrics extends Metrics implements MultiIntValuesHolder {
+public abstract class PercentileMetrics extends GroupMetrics implements MultiIntValuesHolder {
     protected static final String DATASET = "dataset";
     protected static final String VALUE = "value";
     protected static final String PRECISION = "precision";
@@ -47,10 +45,14 @@ public abstract class PercentileMetrics extends Metrics implements MultiIntValue
         99
     };
 
+    /**
+     * The special case when the column is isValue = true, but storageOnly = true, because it is {@link
+     * IntKeyLongValueHashMap} type, this column can't be query by the aggregation way.
+     */
     @Getter
     @Setter
-    @Column(columnName = VALUE, dataType = Column.ValueDataType.LABELED_VALUE, storageOnly = true)
-    private DataTable percentileValues;
+    @Column(columnName = VALUE, isValue = true, storageOnly = true)
+    private IntKeyLongValueHashMap percentileValues;
     @Getter
     @Setter
     @Column(columnName = PRECISION, storageOnly = true)
@@ -58,13 +60,13 @@ public abstract class PercentileMetrics extends Metrics implements MultiIntValue
     @Getter
     @Setter
     @Column(columnName = DATASET, storageOnly = true)
-    private DataTable dataset;
+    private IntKeyLongValueHashMap dataset;
 
     private boolean isCalculated;
 
     public PercentileMetrics() {
-        percentileValues = new DataTable(RANKS.length);
-        dataset = new DataTable(30);
+        percentileValues = new IntKeyLongValueHashMap(RANKS.length);
+        dataset = new IntKeyLongValueHashMap(30);
     }
 
     @Entrance
@@ -72,8 +74,14 @@ public abstract class PercentileMetrics extends Metrics implements MultiIntValue
         this.isCalculated = false;
         this.precision = precision;
 
-        String index = String.valueOf(value / precision);
-        dataset.valueAccumulation(index, 1L);
+        int index = value / precision;
+        IntKeyLongValue element = dataset.get(index);
+        if (element == null) {
+            element = new IntKeyLongValue(index, 1);
+            dataset.put(element.getKey(), element);
+        } else {
+            element.addValue(1);
+        }
     }
 
     @Override
@@ -81,33 +89,34 @@ public abstract class PercentileMetrics extends Metrics implements MultiIntValue
         this.isCalculated = false;
 
         PercentileMetrics percentileMetrics = (PercentileMetrics) metrics;
-        this.dataset.append(percentileMetrics.dataset);
+        combine(percentileMetrics.getDataset(), this.dataset);
     }
 
     @Override
     public final void calculate() {
-        if (!isCalculated) {
-            long total = dataset.sumOfValues();
 
+        if (!isCalculated) {
+            int total = dataset.values().stream().mapToInt(element -> (int) element.getValue()).sum();
+
+            int index = 0;
             int[] roofs = new int[RANKS.length];
             for (int i = 0; i < RANKS.length; i++) {
                 roofs[i] = Math.round(total * RANKS[i] * 1.0f / 100);
             }
 
             int count = 0;
-            final List<String> sortedKeys = dataset.sortedKeys(Comparator.comparingInt(Integer::parseInt));
-
-            int loopIndex = 0;
-            for (String key : sortedKeys) {
-                final Long value = dataset.get(key);
-
-                count += value;
-                for (int rankIdx = loopIndex; rankIdx < roofs.length; rankIdx++) {
-                    int roof = roofs[rankIdx];
+            IntKeyLongValue[] sortedData = dataset.values()
+                                                  .stream()
+                                                  .sorted(Comparator.comparingInt(IntKeyLongValue::getKey))
+                                                  .toArray(IntKeyLongValue[]::new);
+            for (IntKeyLongValue element : sortedData) {
+                count += element.getValue();
+                for (int i = index; i < roofs.length; i++) {
+                    int roof = roofs[i];
 
                     if (count >= roof) {
-                        percentileValues.put(String.valueOf(rankIdx), Long.parseLong(key) * precision);
-                        loopIndex++;
+                        percentileValues.put(index, new IntKeyLongValue(index, element.getKey() * precision));
+                        index++;
                     } else {
                         break;
                     }
@@ -117,9 +126,10 @@ public abstract class PercentileMetrics extends Metrics implements MultiIntValue
     }
 
     public int[] getValues() {
-        return percentileValues.sortedValues(Comparator.comparingInt(Integer::parseInt))
-                               .stream()
-                               .flatMapToInt(l -> IntStream.of(l.intValue()))
-                               .toArray();
+        int[] values = new int[percentileValues.size()];
+        for (int i = 0; i < values.length; i++) {
+            values[i] = (int) percentileValues.get(i).getValue();
+        }
+        return values;
     }
 }

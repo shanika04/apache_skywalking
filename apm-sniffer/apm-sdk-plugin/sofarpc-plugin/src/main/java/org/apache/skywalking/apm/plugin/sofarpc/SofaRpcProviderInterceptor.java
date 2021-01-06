@@ -41,6 +41,8 @@ public class SofaRpcProviderInterceptor implements InstanceMethodsAroundIntercep
         MethodInterceptResult result) throws Throwable {
         SofaRequest sofaRequest = (SofaRequest) allArguments[0];
 
+        AbstractSpan span = null;
+
         ContextCarrier contextCarrier = new ContextCarrier();
         CarrierItem next = contextCarrier.items();
         while (next.hasNext()) {
@@ -53,7 +55,7 @@ public class SofaRpcProviderInterceptor implements InstanceMethodsAroundIntercep
                 next.setHeadValue("");
             }
         }
-        AbstractSpan span = ContextManager.createEntrySpan(generateViewPoint(sofaRequest), contextCarrier);
+        span = ContextManager.createEntrySpan(generateViewPoint(sofaRequest), contextCarrier);
 
         span.setComponent(ComponentsDefine.SOFARPC);
         SpanLayer.asRPCFramework(span);
@@ -82,6 +84,7 @@ public class SofaRpcProviderInterceptor implements InstanceMethodsAroundIntercep
      */
     private void dealException(Throwable throwable) {
         AbstractSpan span = ContextManager.activeSpan();
+        span.errorOccurred();
         span.log(throwable);
     }
 
@@ -93,9 +96,9 @@ public class SofaRpcProviderInterceptor implements InstanceMethodsAroundIntercep
     private String generateViewPoint(SofaRequest sofaRequest) {
         StringBuilder operationName = new StringBuilder();
         operationName.append(sofaRequest.getInterfaceName());
-        operationName.append(".").append(sofaRequest.getMethodName()).append("(");
+        operationName.append("." + sofaRequest.getMethodName() + "(");
         for (String arg : sofaRequest.getMethodArgSigs()) {
-            operationName.append(arg).append(",");
+            operationName.append(arg + ",");
         }
 
         if (sofaRequest.getMethodArgs().length > 0) {

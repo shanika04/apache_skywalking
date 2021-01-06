@@ -25,9 +25,8 @@ import org.apache.skywalking.oap.server.core.analysis.IDManager;
 import org.apache.skywalking.oap.server.core.analysis.NodeType;
 
 import static org.apache.skywalking.oap.server.core.source.DefaultScopeDefine.SERVICE_RELATION;
-import static org.apache.skywalking.oap.server.core.source.DefaultScopeDefine.SERVICE_RELATION_CATALOG_NAME;
 
-@ScopeDeclaration(id = SERVICE_RELATION, name = "ServiceRelation", catalog = SERVICE_RELATION_CATALOG_NAME)
+@ScopeDeclaration(id = SERVICE_RELATION, name = "ServiceRelation")
 @ScopeDefaultColumn.VirtualColumnDefinition(fieldName = "entityId", columnName = "entity_id", isID = true, type = String.class)
 public class ServiceRelation extends Source {
     private String entityId;
@@ -93,12 +92,6 @@ public class ServiceRelation extends Source {
     @Getter
     @Setter
     private DetectPoint detectPoint;
-    @Getter
-    @Setter
-    private String tlsMode;
-    @Getter
-    @Setter
-    private SideCar sideCar = new SideCar();
 
     @Override
     public void prepare() {

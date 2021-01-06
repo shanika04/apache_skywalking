@@ -18,11 +18,10 @@
 
 package org.apache.skywalking.e2e.service.instance;
 
-import java.util.ArrayList;
 import java.util.List;
 import lombok.Data;
 
 @Data
 public class Instances {
-    private List<Instance> instances = new ArrayList<>();
+    private List<Instance> instances;
 }

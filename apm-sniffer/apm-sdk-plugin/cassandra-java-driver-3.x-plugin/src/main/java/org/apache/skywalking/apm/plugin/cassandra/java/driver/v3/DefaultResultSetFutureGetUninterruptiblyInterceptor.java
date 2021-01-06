@@ -53,6 +53,7 @@ public class DefaultResultSetFutureGetUninterruptiblyInterceptor implements Inst
         Class<?>[] argumentsTypes, Throwable t) {
         if (ContextManager.isActive()) {
             AbstractSpan span = ContextManager.activeSpan();
+            span.errorOccurred();
             span.log(t);
         }
     }

@@ -27,7 +27,6 @@ import org.apache.skywalking.apm.agent.core.context.TracingContext;
 import org.apache.skywalking.apm.agent.core.context.TracingContextListener;
 import org.apache.skywalking.apm.agent.core.context.TracingThreadListener;
 import org.apache.skywalking.apm.agent.core.jvm.JVMService;
-import org.apache.skywalking.apm.agent.core.meter.MeterService;
 import org.apache.skywalking.apm.agent.core.profile.ProfileTaskChannelService;
 import org.apache.skywalking.apm.agent.core.profile.ProfileTaskExecutionService;
 import org.apache.skywalking.apm.agent.core.remote.GRPCChannelListener;
@@ -58,7 +57,7 @@ public class ServiceManagerTest {
     public void testServiceDependencies() throws Exception {
         HashMap<Class, BootService> registryService = getFieldValue(ServiceManager.INSTANCE, "bootedServices");
 
-        assertThat(registryService.size(), is(16));
+        assertThat(registryService.size(), is(12));
 
         assertTraceSegmentServiceClient(ServiceManager.INSTANCE.findService(TraceSegmentServiceClient.class));
         assertContextManager(ServiceManager.INSTANCE.findService(ContextManager.class));
@@ -67,7 +66,6 @@ public class ServiceManagerTest {
         assertJVMService(ServiceManager.INSTANCE.findService(JVMService.class));
         assertProfileTaskQueryService(ServiceManager.INSTANCE.findService(ProfileTaskChannelService.class));
         assertProfileTaskExecuteService(ServiceManager.INSTANCE.findService(ProfileTaskExecutionService.class));
-        assertMeterRegisterService(ServiceManager.INSTANCE.findService(MeterService.class));
 
         assertTracingContextListener();
         assertIgnoreTracingContextListener();
@@ -107,7 +105,7 @@ public class ServiceManagerTest {
         assertNotNull(service);
 
         List<GRPCChannelListener> listeners = getFieldValue(service, "listeners");
-        assertEquals(listeners.size(), 7);
+        assertEquals(listeners.size(), 5);
     }
 
     private void assertSamplingService(SamplingService service) {
@@ -119,10 +117,6 @@ public class ServiceManagerTest {
     }
 
     private void assertTraceSegmentServiceClient(TraceSegmentServiceClient service) {
-        assertNotNull(service);
-    }
-
-    private void assertMeterRegisterService(MeterService service) {
         assertNotNull(service);
     }
 

@@ -29,9 +29,8 @@ import org.apache.skywalking.oap.server.core.analysis.DownSampling;
 import org.apache.skywalking.oap.server.core.analysis.IDManager;
 import org.apache.skywalking.oap.server.core.analysis.NodeType;
 import org.apache.skywalking.oap.server.core.analysis.TimeBucket;
-import org.apache.skywalking.oap.server.core.config.NamingControl;
 import org.apache.skywalking.oap.server.core.source.ServiceInstanceUpdate;
-import org.apache.skywalking.oap.server.core.source.ServiceMeta;
+import org.apache.skywalking.oap.server.core.source.ServiceUpdate;
 import org.apache.skywalking.oap.server.core.source.SourceReceiver;
 import org.apache.skywalking.oap.server.library.module.ModuleManager;
 import org.apache.skywalking.oap.server.library.server.jetty.ArgumentsParseException;
@@ -40,14 +39,10 @@ import org.apache.skywalking.oap.server.library.util.ProtoBufJsonUtils;
 
 public class ManagementServiceKeepAliveHandler extends JettyJsonHandler {
     private final SourceReceiver sourceReceiver;
-    private final NamingControl namingControl;
     private final Gson gson = new Gson();
 
     public ManagementServiceKeepAliveHandler(ModuleManager moduleManager) {
         this.sourceReceiver = moduleManager.find(CoreModule.NAME).provider().getService(SourceReceiver.class);
-        this.namingControl = moduleManager.find(CoreModule.NAME)
-                                          .provider()
-                                          .getService(NamingControl.class);
     }
 
     @Override
@@ -60,21 +55,19 @@ public class ManagementServiceKeepAliveHandler extends JettyJsonHandler {
         final InstanceProperties.Builder request = InstanceProperties.newBuilder();
         ProtoBufJsonUtils.fromJSON(getJsonBody(req), request);
 
-        final String serviceName = namingControl.formatServiceName(request.getService());
-        final String instanceName = namingControl.formatInstanceName(request.getServiceInstance());
-
         final long timeBucket = TimeBucket.getTimeBucket(System.currentTimeMillis(), DownSampling.Minute);
         ServiceInstanceUpdate serviceInstanceUpdate = new ServiceInstanceUpdate();
-        serviceInstanceUpdate.setServiceId(IDManager.ServiceID.buildId(serviceName, NodeType.Normal));
-        serviceInstanceUpdate.setName(instanceName);
-        serviceInstanceUpdate.setTimeBucket(timeBucket);
+        serviceInstanceUpdate.setServiceId(IDManager.ServiceID.buildId(request.getService(), NodeType.Normal));
+        serviceInstanceUpdate.setName(request.getServiceInstance());
+        serviceInstanceUpdate.setTimeBucket(
+            timeBucket);
         sourceReceiver.receive(serviceInstanceUpdate);
 
-        ServiceMeta serviceMeta = new ServiceMeta();
-        serviceMeta.setName(serviceName);
-        serviceMeta.setNodeType(NodeType.Normal);
-        serviceMeta.setTimeBucket(timeBucket);
-        sourceReceiver.receive(serviceMeta);
+        ServiceUpdate serviceUpdate = new ServiceUpdate();
+        serviceUpdate.setName(request.getService());
+        serviceUpdate.setNodeType(NodeType.Normal);
+        serviceUpdate.setTimeBucket(timeBucket);
+        sourceReceiver.receive(serviceUpdate);
 
         return gson.fromJson(ProtoBufJsonUtils.toJSON(Commands.newBuilder().build()), JsonElement.class);
     }

@@ -55,9 +55,5 @@ public class PluginDefine {
     public String getDefineClass() {
         return defineClass;
     }
-
-    public String getName() {
-        return name;
-    }
 }
 

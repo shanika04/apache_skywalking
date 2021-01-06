@@ -19,7 +19,6 @@
 package org.apache.skywalking.apm.plugin.avro;
 
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.avro.ipc.RPCContext;
 import org.apache.avro.ipc.RPCPlugin;
@@ -51,7 +50,7 @@ public class SWServerRPCPlugin extends RPCPlugin {
         while (items.hasNext()) {
             items = items.next();
             ByteBuffer buffer = (ByteBuffer) meta.get(new Utf8(items.getHeadKey()));
-            items.setHeadValue(new String(buffer.array(), StandardCharsets.UTF_8));
+            items.setHeadValue(new String(buffer.array()));
         }
 
         String operationName = prefix + context.getMessage().getName();

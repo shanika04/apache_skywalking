@@ -14,7 +14,7 @@
 # limitations under the License.
 
 instances:
-  - key: not null
+  - key: 2
     label: not null
     attributes:
       - name: OS Name

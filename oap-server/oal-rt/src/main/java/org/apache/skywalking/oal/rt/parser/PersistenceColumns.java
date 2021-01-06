@@ -26,26 +26,26 @@ public class PersistenceColumns {
     private List<PersistenceField> longFields = new LinkedList<>();
     private List<PersistenceField> doubleFields = new LinkedList<>();
     private List<PersistenceField> intFields = new LinkedList<>();
-    private List<PersistenceField> objectFields = new LinkedList<>();
+    private List<PersistenceField> intKeyLongValueHashMap = new LinkedList<>();
 
     public void addStringField(String fieldName) {
-        stringFields.add(new PersistenceField(fieldName, "String"));
+        stringFields.add(new PersistenceField(fieldName));
     }
 
     public void addLongField(String fieldName) {
-        longFields.add(new PersistenceField(fieldName, "long"));
+        longFields.add(new PersistenceField(fieldName));
     }
 
     public void addDoubleField(String fieldName) {
-        doubleFields.add(new PersistenceField(fieldName, "double"));
+        doubleFields.add(new PersistenceField(fieldName));
     }
 
     public void addIntField(String fieldName) {
-        intFields.add(new PersistenceField(fieldName, "int"));
+        intFields.add(new PersistenceField(fieldName));
     }
 
-    public void addObjectField(String fieldName, String fieldType) {
-        objectFields.add(new PersistenceField(fieldName, fieldType));
+    public void addIntKeyLongValueHashMapField(String fieldName) {
+        intKeyLongValueHashMap.add(new PersistenceField(fieldName));
     }
 
     public List<PersistenceField> getStringFields() {
@@ -64,7 +64,7 @@ public class PersistenceColumns {
         return intFields;
     }
 
-    public List<PersistenceField> getObjectFields() {
-        return objectFields;
+    public List<PersistenceField> getIntKeyLongValueHashMapFields() {
+        return intKeyLongValueHashMap;
     }
 }

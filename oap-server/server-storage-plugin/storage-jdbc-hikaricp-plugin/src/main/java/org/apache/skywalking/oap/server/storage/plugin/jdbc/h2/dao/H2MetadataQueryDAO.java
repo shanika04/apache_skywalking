@@ -29,18 +29,18 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import org.apache.skywalking.apm.util.StringUtil;
 import org.apache.skywalking.oap.server.core.analysis.NodeType;
 import org.apache.skywalking.oap.server.core.analysis.TimeBucket;
 import org.apache.skywalking.oap.server.core.analysis.manual.endpoint.EndpointTraffic;
 import org.apache.skywalking.oap.server.core.analysis.manual.instance.InstanceTraffic;
 import org.apache.skywalking.oap.server.core.analysis.manual.service.ServiceTraffic;
-import org.apache.skywalking.oap.server.core.query.enumeration.Language;
-import org.apache.skywalking.oap.server.core.query.type.Attribute;
-import org.apache.skywalking.oap.server.core.query.type.Database;
-import org.apache.skywalking.oap.server.core.query.type.Endpoint;
-import org.apache.skywalking.oap.server.core.query.type.Service;
-import org.apache.skywalking.oap.server.core.query.type.ServiceInstance;
+import org.apache.skywalking.oap.server.core.query.entity.Attribute;
+import org.apache.skywalking.oap.server.core.query.entity.Database;
+import org.apache.skywalking.oap.server.core.query.entity.Endpoint;
+import org.apache.skywalking.oap.server.core.query.entity.Language;
+import org.apache.skywalking.oap.server.core.query.entity.LanguageTrans;
+import org.apache.skywalking.oap.server.core.query.entity.Service;
+import org.apache.skywalking.oap.server.core.query.entity.ServiceInstance;
 import org.apache.skywalking.oap.server.core.storage.query.IMetadataQueryDAO;
 import org.apache.skywalking.oap.server.library.client.jdbc.hikaricp.JDBCHikariCPClient;
 
@@ -56,16 +56,56 @@ public class H2MetadataQueryDAO implements IMetadataQueryDAO {
     }
 
     @Override
-    public List<Service> getAllServices(final String group) throws IOException {
+    public int numOfService(long startTimestamp, long endTimestamp) throws IOException {
+        StringBuilder sql = new StringBuilder();
+        List<Object> condition = new ArrayList<>(5);
+        sql.append("select count(1) num from ").append(ServiceTraffic.INDEX_NAME).append(" where ");
+        sql.append(ServiceTraffic.NODE_TYPE).append("=" + NodeType.Normal.value());
+
+        return getNum(sql, condition);
+    }
+
+    private Integer getNum(StringBuilder sql, List<Object> condition) throws IOException {
+        try (Connection connection = h2Client.getConnection()) {
+            try (ResultSet resultSet = h2Client.executeQuery(
+                connection, sql.toString(), condition.toArray(new Object[0]))) {
+                if (resultSet.next()) {
+                    return resultSet.getInt("num");
+                }
+            }
+        } catch (SQLException e) {
+            throw new IOException(e);
+        }
+        return 0;
+    }
+
+    @Override
+    public int numOfEndpoint() throws IOException {
+        StringBuilder sql = new StringBuilder();
+        List<Object> condition = new ArrayList<>(5);
+        sql.append("select count(*) num from ").append(EndpointTraffic.INDEX_NAME);
+
+        return getNum(sql, condition);
+    }
+
+    @Override
+    public int numOfConjectural(int nodeTypeValue) throws IOException {
+        StringBuilder sql = new StringBuilder();
+        List<Object> condition = new ArrayList<>(5);
+        sql.append("select count(*) num from ").append(ServiceTraffic.INDEX_NAME).append(" where ");
+        sql.append(ServiceTraffic.NODE_TYPE).append("=?");
+        condition.add(nodeTypeValue);
+
+        return getNum(sql, condition);
+    }
+
+    @Override
+    public List<Service> getAllServices(long startTimestamp, long endTimestamp) throws IOException {
         StringBuilder sql = new StringBuilder();
         List<Object> condition = new ArrayList<>(5);
         sql.append("select * from ").append(ServiceTraffic.INDEX_NAME).append(" where ");
         sql.append(ServiceTraffic.NODE_TYPE).append("=?");
         condition.add(NodeType.Normal.value());
-        if (StringUtil.isNotEmpty(group)) {
-            sql.append(" and ").append(ServiceTraffic.GROUP).append("=?");
-            condition.add(group);
-        }
         sql.append(" limit ").append(metadataQueryMaxSize);
 
         try (Connection connection = h2Client.getConnection()) {
@@ -79,7 +119,7 @@ public class H2MetadataQueryDAO implements IMetadataQueryDAO {
     }
 
     @Override
-    public List<Service> getAllBrowserServices() throws IOException {
+    public List<Service> getAllBrowserServices(long startTimestamp, long endTimestamp) throws IOException {
         StringBuilder sql = new StringBuilder();
         List<Object> condition = new ArrayList<>(5);
         sql.append("select * from ").append(ServiceTraffic.INDEX_NAME).append(" where ");
@@ -123,15 +163,14 @@ public class H2MetadataQueryDAO implements IMetadataQueryDAO {
     }
 
     @Override
-    public List<Service> searchServices(String keyword) throws IOException {
+    public List<Service> searchServices(long startTimestamp, long endTimestamp, String keyword) throws IOException {
         StringBuilder sql = new StringBuilder();
         List<Object> condition = new ArrayList<>(5);
         sql.append("select * from ").append(ServiceTraffic.INDEX_NAME).append(" where ");
         sql.append(ServiceTraffic.NODE_TYPE).append("=?");
         condition.add(NodeType.Normal.value());
         if (!Strings.isNullOrEmpty(keyword)) {
-            sql.append(" and ").append(ServiceTraffic.NAME).append(" like concat('%',?,'%')");
-            condition.add(keyword);
+            sql.append(" and ").append(ServiceTraffic.NAME).append(" like \"%").append(keyword).append("%\"");
         }
         sql.append(" limit ").append(metadataQueryMaxSize);
 
@@ -181,8 +220,7 @@ public class H2MetadataQueryDAO implements IMetadataQueryDAO {
         sql.append(EndpointTraffic.SERVICE_ID).append("=?");
         condition.add(serviceId);
         if (!Strings.isNullOrEmpty(keyword)) {
-            sql.append(" and ").append(EndpointTraffic.NAME).append(" like concat('%',?,'%') ");
-            condition.add(keyword);
+            sql.append(" and ").append(EndpointTraffic.NAME).append(" like '%").append(keyword).append("%' ");
         }
         sql.append(" limit ").append(limit);
 
@@ -235,7 +273,7 @@ public class H2MetadataQueryDAO implements IMetadataQueryDAO {
                             String key = property.getKey();
                             String value = property.getValue().getAsString();
                             if (key.equals(InstanceTraffic.PropertyUtil.LANGUAGE)) {
-                                serviceInstance.setLanguage(Language.value(value));
+                                serviceInstance.setLanguage(LanguageTrans.INSTANCE.value(value));
                             } else {
                                 serviceInstance.getAttributes().add(new Attribute(key, value));
                             }
@@ -260,7 +298,6 @@ public class H2MetadataQueryDAO implements IMetadataQueryDAO {
             Service service = new Service();
             service.setId(resultSet.getString(H2TableInstaller.ID_COLUMN));
             service.setName(resultSet.getString(ServiceTraffic.NAME));
-            service.setGroup(resultSet.getString(ServiceTraffic.GROUP));
             services.add(service);
         }
 

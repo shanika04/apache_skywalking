@@ -23,16 +23,12 @@ import com.google.common.reflect.ClassPath;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.SneakyThrows;
-import org.apache.skywalking.oap.server.core.analysis.metrics.Metrics;
 import org.apache.skywalking.oap.server.core.analysis.metrics.annotation.MetricsFunction;
 
-@SuppressWarnings("UnstableApiUsage")
 public class MetricsHolder {
-    private static final Map<String, Class<? extends Metrics>> REGISTER = new HashMap<>();
-    private static volatile boolean INITIALIZED = false;
+    private static Map<String, Class<? extends org.apache.skywalking.oap.server.core.analysis.metrics.Metrics>> REGISTER = new HashMap<>();
 
-    private static void init() throws IOException {
+    public static void init() throws IOException {
         ClassPath classpath = ClassPath.from(MetricsHolder.class.getClassLoader());
         ImmutableSet<ClassPath.ClassInfo> classes = classpath.getTopLevelClassesRecursive("org.apache.skywalking");
         for (ClassPath.ClassInfo classInfo : classes) {
@@ -42,22 +38,19 @@ public class MetricsHolder {
                 MetricsFunction metricsFunction = aClass.getAnnotation(MetricsFunction.class);
                 REGISTER.put(
                     metricsFunction.functionName(),
-                    (Class<? extends Metrics>) aClass
+                    (Class<? extends org.apache.skywalking.oap.server.core.analysis.metrics.Metrics>) aClass
                 );
             }
         }
     }
 
-    @SneakyThrows
-    public static Class<? extends Metrics> find(String functionName) {
-        if (!INITIALIZED) {
-            init();
-            INITIALIZED = true;
-        }
-
-        Class<? extends Metrics> metricsClass = REGISTER.get(functionName);
+    public static Class<? extends org.apache.skywalking.oap.server.core.analysis.metrics.Metrics> find(
+        String functionName) {
+        String func = functionName;
+        Class<? extends org.apache.skywalking.oap.server.core.analysis.metrics.Metrics> metricsClass = REGISTER.get(
+            func);
         if (metricsClass == null) {
-            throw new IllegalArgumentException("Can't find metrics, " + functionName);
+            throw new IllegalArgumentException("Can't find metrics, " + func);
         }
         return metricsClass;
     }

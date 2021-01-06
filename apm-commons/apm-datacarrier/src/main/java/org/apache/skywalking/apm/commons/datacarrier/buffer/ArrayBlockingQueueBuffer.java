@@ -40,12 +40,16 @@ public class ArrayBlockingQueueBuffer<T> implements QueueBuffer<T> {
 
     @Override
     public boolean save(T data) {
-        //only BufferStrategy.BLOCKING
-        try {
-            queue.put(data);
-        } catch (InterruptedException e) {
-            // Ignore the error
-            return false;
+        switch (strategy) {
+            case IF_POSSIBLE:
+                return queue.offer(data);
+            default:
+                try {
+                    queue.put(data);
+                } catch (InterruptedException e) {
+                    // Ignore the error
+                    return false;
+                }
         }
         return true;
     }

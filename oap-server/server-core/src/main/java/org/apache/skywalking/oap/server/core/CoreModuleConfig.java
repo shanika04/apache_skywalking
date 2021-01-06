@@ -27,55 +27,66 @@ import org.apache.skywalking.oap.server.library.module.ModuleConfig;
 
 @Getter
 public class CoreModuleConfig extends ModuleConfig {
+    @Setter
     private String role = "Mixed";
+    @Setter
     private String nameSpace;
+    @Setter
     private String restHost;
+    @Setter
     private int restPort;
+    @Setter
+    private int jettySelectors = 1;
+    @Setter
     private String restContextPath;
-    private int restMinThreads = 1;
-    private int restMaxThreads = 200;
-    private long restIdleTimeOut = 30000;
-    private int restAcceptorPriorityDelta = 0;
-    private int restAcceptQueueSize = 0;
-
+    @Setter
     private String gRPCHost;
+    @Setter
     private int gRPCPort;
+    @Setter
     private boolean gRPCSslEnabled = false;
+    @Setter
     private String gRPCSslKeyPath;
+    @Setter
     private String gRPCSslCertChainPath;
+    @Setter
     private String gRPCSslTrustedCAPath;
+    @Setter
     private int maxConcurrentCallsPerConnection;
+    @Setter
     private int maxMessageSize;
+    @Setter
     private boolean enableDatabaseSession;
+    @Setter
     private int topNReportPeriod;
     private final List<String> downsampling;
     /**
      * The period of doing data persistence. Unit is second.
      */
-
+    @Setter
     private long persistentPeriod = 3;
-
+    @Setter
     private boolean enableDataKeeperExecutor = true;
-
+    @Setter
     private int dataKeeperExecutePeriod = 5;
     /**
      * The time to live of all metrics data. Unit is day.
      */
-
+    @Setter
     private int metricsDataTTL = 3;
     /**
      * The time to live of all record data, including tracing. Unit is Day.
      */
-
+    @Setter
     private int recordDataTTL = 7;
-
+    @Setter
     private int gRPCThreadPoolSize;
-
+    @Setter
     private int gRPCThreadPoolQueueSize;
     /**
      * Timeout for cluster internal communication, in seconds.
      */
-
+    @Setter
     private int remoteTimeout = 20;
     /**
      * The size of network address alias.
@@ -103,28 +114,12 @@ public class CoreModuleConfig extends ModuleConfig {
      */
     private boolean activeExtraModelColumns = false;
     /**
-     * The max length of the service name.
-     */
-    private int serviceNameMaxLength = 70;
-    /**
-     * The max length of the service instance name.
-     */
-    private int instanceNameMaxLength = 70;
-    /**
      * The max length of the endpoint name.
      *
      * <p>NOTICE</p>
      * In the current practice, we don't recommend the length over 190.
      */
     private int endpointNameMaxLength = 150;
-    /**
-     * Define the set of span tag keys, which should be searchable through the GraphQL.
-     *
-     * @since 8.2.0
-     */
-    @Setter
-    @Getter
-    private String searchableTracesTags = DEFAULT_SEARCHABLE_TAG_KEYS;
 
     public CoreModuleConfig() {
         this.downsampling = new ArrayList<>();
@@ -151,19 +146,4 @@ public class CoreModuleConfig extends ModuleConfig {
          */
         Aggregator
     }
-
-    /**
-     * SkyWalking Java Agent provides the recommended tag keys for other language agents or SDKs. This field declare the
-     * recommended keys should be searchable.
-     */
-    private static final String DEFAULT_SEARCHABLE_TAG_KEYS = String.join(
-        Const.COMMA,
-        "http.method",
-        "status_code",
-        "db.type",
-        "db.instance",
-        "mq.queue",
-        "mq.topic",
-        "mq.broker"
-    );
 }

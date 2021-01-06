@@ -32,7 +32,7 @@ public abstract class MaxDoubleMetrics extends Metrics implements DoubleValueHol
 
     @Getter
     @Setter
-    @Column(columnName = VALUE, dataType = Column.ValueDataType.COMMON_VALUE)
+    @Column(columnName = VALUE, isValue = true)
     private double value;
 
     @Entrance

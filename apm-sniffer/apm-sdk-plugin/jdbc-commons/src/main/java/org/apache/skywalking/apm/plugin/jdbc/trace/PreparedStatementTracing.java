@@ -43,6 +43,7 @@ public class PreparedStatementTracing {
             SpanLayer.asDB(span);
             return exec.exe(realStatement, sql);
         } catch (SQLException e) {
+            span.errorOccurred();
             span.log(e);
             throw e;
         } finally {

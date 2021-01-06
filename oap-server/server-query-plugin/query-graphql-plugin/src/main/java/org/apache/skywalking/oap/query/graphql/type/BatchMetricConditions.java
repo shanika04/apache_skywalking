@@ -22,7 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 import lombok.Getter;
 
-@Deprecated
+/**
+ *
+ **/
 @Getter
 public class BatchMetricConditions {
     private String name;

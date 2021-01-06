@@ -44,7 +44,7 @@ public class CaseController {
     @ResponseBody
     public String dubbo() {
         GreetService greetService = referenceConfig.get();
-        greetService.doBusiness("helloWorld");
+        System.out.println(greetService.doBusiness());
         return SUCCESS;
     }
 }

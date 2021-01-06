@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class ModuleDefine implements ModuleProviderHolder {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ModuleDefine.class);
+    private static final Logger logger = LoggerFactory.getLogger(ModuleDefine.class);
 
     private ModuleProvider loadedProvider = null;
 
@@ -42,7 +42,6 @@ public abstract class ModuleDefine implements ModuleProviderHolder {
 
     /**
      * @return the module name
-     *
      */
     public final String name() {
         return name;
@@ -83,10 +82,10 @@ public abstract class ModuleDefine implements ModuleProviderHolder {
         }
 
         if (loadedProvider == null) {
-            throw new ProviderNotFoundException(this.name() + " module no provider found.");
+            throw new ProviderNotFoundException(this.name() + " module no provider exists.");
         }
 
-        LOGGER.info("Prepare the {} provider in {} module.", loadedProvider.name(), this.name());
+        logger.info("Prepare the {} provider in {} module.", loadedProvider.name(), this.name());
         try {
             copyProperties(loadedProvider.createConfigBeanIfAbsent(), configuration.getProviderConfiguration(loadedProvider
                 .name()), this.name(), loadedProvider.name());
@@ -110,7 +109,7 @@ public abstract class ModuleDefine implements ModuleProviderHolder {
                 field.setAccessible(true);
                 field.set(dest, src.get(propertyName));
             } catch (NoSuchFieldException e) {
-                LOGGER.warn(propertyName + " setting is not supported in " + providerName + " provider of " + moduleName + " module");
+                logger.warn(propertyName + " setting is not supported in " + providerName + " provider of " + moduleName + " module");
             }
         }
     }

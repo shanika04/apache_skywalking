@@ -18,7 +18,7 @@
 
 package org.apache.skywalking.oap.server.core.query;
 
-import org.apache.skywalking.oap.server.core.query.type.Pagination;
+import org.apache.skywalking.oap.server.core.query.entity.Pagination;
 
 public enum PaginationUtils {
     INSTANCE;

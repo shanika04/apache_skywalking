@@ -18,3 +18,4 @@ type: jvm
 entryService: http://localhost:8080/greet/skywalking
 healthCheck: http://localhost:8080/healthCheck
 startScript: ./bin/startup.sh
+framework: Armeria

@@ -20,11 +20,13 @@ package org.apache.skywalking.apm.plugin.jdk.threading;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import org.apache.skywalking.apm.agent.core.conf.Config;
 import org.apache.skywalking.apm.agent.core.logging.api.ILog;
 import org.apache.skywalking.apm.agent.core.logging.api.LogManager;
 import org.apache.skywalking.apm.agent.core.plugin.match.IndirectMatch;
-import org.apache.skywalking.apm.agent.core.plugin.match.PrefixMatch;
 import org.apache.skywalking.apm.agent.core.plugin.match.logical.LogicalMatchOperation;
+import org.apache.skywalking.apm.agent.core.plugin.match.PrefixMatch;
 
 import static org.apache.skywalking.apm.agent.core.plugin.match.PrefixMatch.nameStartsWith;
 
@@ -32,7 +34,7 @@ public class ThreadingConfig {
     private static final ILog LOGGER = LogManager.getLogger(ThreadingConfig.class);
 
     public static IndirectMatch prefixesMatchesForJdkThreading() {
-        final String jointPrefixes = JDKThreadingPluginConfig.Plugin.JdkThreading.THREADING_CLASS_PREFIXES;
+        final String jointPrefixes = Config.Plugin.JdkThreading.THREADING_CLASS_PREFIXES;
 
         if (jointPrefixes == null || jointPrefixes.trim().isEmpty()) {
             return null;

@@ -20,7 +20,6 @@ package org.apache.skywalking.oap.server.core.source;
 
 import java.io.IOException;
 import lombok.Getter;
-import org.apache.skywalking.oap.server.core.analysis.DispatcherDetectorListener;
 import org.apache.skywalking.oap.server.core.analysis.DispatcherManager;
 
 public class SourceReceiverImpl implements SourceReceiver {
@@ -34,11 +33,6 @@ public class SourceReceiverImpl implements SourceReceiver {
     @Override
     public void receive(Source source) {
         dispatcherManager.forward(source);
-    }
-
-    @Override
-    public DispatcherDetectorListener getDispatcherDetectorListener() {
-        return getDispatcherManager();
     }
 
     public void scan() throws IOException, InstantiationException, IllegalAccessException {

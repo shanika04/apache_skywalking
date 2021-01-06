@@ -18,35 +18,40 @@
 
 package org.apache.skywalking.oap.server.core.storage.model;
 
-import java.lang.reflect.Type;
+import com.google.gson.JsonObject;
 import lombok.Getter;
-import org.apache.skywalking.oap.server.core.analysis.metrics.DataTable;
+import org.apache.skywalking.oap.server.core.analysis.metrics.IntKeyLongValueHashMap;
 
 @Getter
 public class ModelColumn {
     private final ColumnName columnName;
     private final Class<?> type;
-    private final Type genericType;
     private final boolean matchQuery;
     private final boolean storageOnly;
     private final int length;
 
     public ModelColumn(ColumnName columnName,
                        Class<?> type,
-                       Type genericType,
                        boolean matchQuery,
                        boolean storageOnly,
                        boolean isValue,
                        int length) {
         this.columnName = columnName;
         this.type = type;
-        this.genericType = genericType;
         this.matchQuery = matchQuery;
-        this.length = length;
+
+        /*
+         * Only accept length in the String/JsonObject definition.
+         */
+        if (type.equals(String.class) || type.equals(JsonObject.class)) {
+            this.length = length;
+        } else {
+            this.length = 0;
+        }
         /*
          * byte[] and {@link IntKeyLongValueHashMap} could never be query.
          */
-        if (type.equals(byte[].class) || type.equals(DataTable.class)) {
+        if (type.equals(byte[].class) || type.equals(IntKeyLongValueHashMap.class)) {
             this.storageOnly = true;
         } else {
             if (storageOnly && isValue) {

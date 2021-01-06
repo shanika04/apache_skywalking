@@ -32,7 +32,6 @@ segmentItems:
       peer: mongodb-server:27017
       tags:
       - {key: db.type, value: MongoDB}
-      - {key: db.bind_vars, value: not null}
       skipAnalysis: 'false'
     - operationName: MongoDB/MixedBulkWriteOperation
       operationId: 0
@@ -47,7 +46,6 @@ segmentItems:
       peer: mongodb-server:27017
       tags:
       - {key: db.type, value: MongoDB}
-      - {key: db.bind_vars, value: not null}
       skipAnalysis: 'false'
     - operationName: MongoDB/FindOperation
       operationId: 0
@@ -62,7 +60,6 @@ segmentItems:
       peer: mongodb-server:27017
       tags:
       - {key: db.type, value: MongoDB}
-      - {key: db.bind_vars, value: not null}
       skipAnalysis: 'false'
     - operationName: MongoDB/MixedBulkWriteOperation
       operationId: 0
@@ -77,7 +74,6 @@ segmentItems:
       peer: mongodb-server:27017
       tags:
       - {key: db.type, value: MongoDB}
-      - {key: db.bind_vars, value: not null}
       skipAnalysis: 'false'
     - operationName: MongoDB/FindOperation
       operationId: 0
@@ -92,7 +88,6 @@ segmentItems:
       peer: mongodb-server:27017
       tags:
       - {key: db.type, value: MongoDB}
-      - {key: db.bind_vars, value: not null}
       skipAnalysis: 'false'
     - operationName: MongoDB/MixedBulkWriteOperation
       operationId: 0
@@ -107,7 +102,6 @@ segmentItems:
       peer: mongodb-server:27017
       tags:
       - {key: db.type, value: MongoDB}
-      - {key: db.bind_vars, value: not null}
       skipAnalysis: 'false'
     - operationName: MongoDB/DropDatabaseOperation
       operationId: 0
@@ -122,7 +116,6 @@ segmentItems:
       peer: mongodb-server:27017
       tags:
       - {key: db.type, value: MongoDB}
-      - {key: db.bind_vars, value: not null}
       skipAnalysis: 'false'
     - operationName: /mongodb-case/case/mongodb
       operationId: 0

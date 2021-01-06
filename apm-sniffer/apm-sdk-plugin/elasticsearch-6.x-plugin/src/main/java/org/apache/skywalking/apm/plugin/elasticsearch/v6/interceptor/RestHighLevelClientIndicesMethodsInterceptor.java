@@ -22,6 +22,7 @@ import java.lang.reflect.Method;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.EnhancedInstance;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.InstanceMethodsAroundInterceptor;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.MethodInterceptResult;
+import org.apache.skywalking.apm.plugin.elasticsearch.v6.RestClientEnhanceInfo;
 
 public class RestHighLevelClientIndicesMethodsInterceptor implements InstanceMethodsAroundInterceptor {
 
@@ -35,7 +36,7 @@ public class RestHighLevelClientIndicesMethodsInterceptor implements InstanceMet
     public Object afterMethod(EnhancedInstance objInst, Method method, Object[] allArguments, Class<?>[] argumentsTypes,
         Object ret) throws Throwable {
         if (ret instanceof EnhancedInstance) {
-            ((EnhancedInstance) ret).setSkyWalkingDynamicField(objInst.getSkyWalkingDynamicField());
+            ((EnhancedInstance) ret).setSkyWalkingDynamicField((RestClientEnhanceInfo) (objInst.getSkyWalkingDynamicField()));
         }
         return ret;
     }

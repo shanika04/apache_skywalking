@@ -39,6 +39,11 @@ public class JaegerStorageModuleElasticsearchProvider extends StorageModuleElast
     }
 
     @Override
+    public void notifyAfterCompleted() {
+        super.notifyAfterCompleted();
+    }
+
+    @Override
     public String[] requiredModules() {
         return new String[] {CoreModule.NAME};
     }

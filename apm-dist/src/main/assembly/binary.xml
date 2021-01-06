@@ -39,6 +39,7 @@
             <outputDirectory>/config</outputDirectory>
             <includes>
                 <include>log4j2.xml</include>
+                <include>application.yml</include>
                 <include>alarm-settings.yml</include>
                 <include>alarm-settings-sample.yml</include>
             </includes>
@@ -46,20 +47,22 @@
         <fileSet>
             <directory>${project.basedir}/../oap-server/server-bootstrap/src/main/resources</directory>
             <includes>
-                <include>application.yml</include>
                 <include>component-libraries.yml</include>
+                <include>official_analysis.oal</include>
                 <include>gateways.yml</include>
                 <include>service-apdex-threshold.yml</include>
-                <include>endpoint-name-grouping.yml</include>
-                <include>metadata-service-mapping.yaml</include>
-                <include>oal/*.oal</include>
-                <include>fetcher-prom-rules/*.yaml</include>
-                <include>envoy-metrics-rules/*.yaml</include>
-                <include>meter-analyzer-config/*.yaml</include>
-                <include>otel-oc-rules/*</include>
-                <include>ui-initialized-templates/*</include>
             </includes>
             <outputDirectory>/config</outputDirectory>
+        </fileSet>
+        <fileSet>
+            <directory>${project.basedir}/../oap-server/server-starter/target/skywalking-oap-assembly/skywalking-oap/config</directory>
+            <outputDirectory>/config</outputDirectory>
+            <includes>
+                <include>*.yml</include>
+                <include>*.xml</include>
+                <include>*.properties</include>
+                <include>*.oal</include>
+            </includes>
         </fileSet>
         <fileSet>
             <directory>${project.basedir}/../oap-server/server-starter/target/skywalking-oap-assembly/skywalking-oap/libs</directory>

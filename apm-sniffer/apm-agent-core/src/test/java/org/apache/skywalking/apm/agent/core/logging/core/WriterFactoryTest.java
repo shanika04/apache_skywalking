@@ -49,6 +49,7 @@ public class WriterFactoryTest {
         assertTrue(AgentPackagePath.isPathFound());
 
         IWriter logWriter = WriterFactory.getLogWriter();
+        PowerMockito.verifyStatic();
         assertTrue(logWriter instanceof SystemOutWriter);
     }
 
@@ -64,6 +65,7 @@ public class WriterFactoryTest {
         assertTrue(AgentPackagePath.isPathFound());
 
         IWriter logWriter = WriterFactory.getLogWriter();
+        PowerMockito.verifyStatic();
         assertTrue(logWriter instanceof FileWriter);
     }
 }

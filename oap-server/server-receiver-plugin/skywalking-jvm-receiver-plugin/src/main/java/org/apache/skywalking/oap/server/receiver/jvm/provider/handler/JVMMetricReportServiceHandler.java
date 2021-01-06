@@ -23,22 +23,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.apm.network.common.v3.Commands;
 import org.apache.skywalking.apm.network.language.agent.v3.JVMMetricCollection;
 import org.apache.skywalking.apm.network.language.agent.v3.JVMMetricReportServiceGrpc;
-import org.apache.skywalking.oap.server.analyzer.provider.jvm.JVMSourceDispatcher;
-import org.apache.skywalking.oap.server.core.CoreModule;
-import org.apache.skywalking.oap.server.core.config.NamingControl;
 import org.apache.skywalking.oap.server.library.module.ModuleManager;
 import org.apache.skywalking.oap.server.library.server.grpc.GRPCHandler;
 
 @Slf4j
 public class JVMMetricReportServiceHandler extends JVMMetricReportServiceGrpc.JVMMetricReportServiceImplBase implements GRPCHandler {
     private final JVMSourceDispatcher jvmSourceDispatcher;
-    private final NamingControl namingControl;
 
     public JVMMetricReportServiceHandler(ModuleManager moduleManager) {
         this.jvmSourceDispatcher = new JVMSourceDispatcher(moduleManager);
-        this.namingControl = moduleManager.find(CoreModule.NAME)
-                                          .provider()
-                                          .getService(NamingControl.class);
     }
 
     @Override
@@ -50,12 +43,9 @@ public class JVMMetricReportServiceHandler extends JVMMetricReportServiceGrpc.JV
                 request.getServiceInstance()
             );
         }
-        final JVMMetricCollection.Builder builder = request.toBuilder();
-        builder.setService(namingControl.formatServiceName(builder.getService()));
-        builder.setServiceInstance(namingControl.formatInstanceName(builder.getServiceInstance()));
 
-        builder.getMetricsList().forEach(jvmMetric -> {
-            jvmSourceDispatcher.sendMetric(builder.getService(), builder.getServiceInstance(), jvmMetric);
+        request.getMetricsList().forEach(jvmMetric -> {
+            jvmSourceDispatcher.sendMetric(request.getService(), request.getServiceInstance(), jvmMetric);
         });
 
         responseObserver.onNext(Commands.newBuilder().build());

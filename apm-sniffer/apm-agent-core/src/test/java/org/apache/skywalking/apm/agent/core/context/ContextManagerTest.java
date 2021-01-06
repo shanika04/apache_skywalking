@@ -122,6 +122,7 @@ public class ContextManagerTest {
 
         ContextCarrier injectContextCarrier = new ContextCarrier();
         AbstractSpan exitSpan = ContextManager.createExitSpan("/textExitSpan", injectContextCarrier, "127.0.0.1:12800");
+        exitSpan.errorOccurred();
         exitSpan.log(new RuntimeException("exception"));
         exitSpan.setComponent(ComponentsDefine.HTTPCLIENT);
 
@@ -237,6 +238,7 @@ public class ContextManagerTest {
 
         ContextCarrier injectContextCarrier = new ContextCarrier();
         AbstractSpan exitSpan = ContextManager.createExitSpan("/textExitSpan", injectContextCarrier, "127.0.0.1:12800");
+        exitSpan.errorOccurred();
         exitSpan.log(new RuntimeException("exception"));
         exitSpan.setComponent(ComponentsDefine.HTTPCLIENT);
         SpanLayer.asHttp(exitSpan);

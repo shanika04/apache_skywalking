@@ -25,11 +25,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.sql.SQLException;
+
 @RestController
 @RequestMapping("/case")
 public class CaseController {
 
-    private static final Logger LOGGER = LogManager.getLogger(CaseController.class);
+    private static final Logger logger = LogManager.getLogger(CaseController.class);
 
     private static final String SUCCESS = "Success";
 
@@ -38,10 +40,7 @@ public class CaseController {
     private static final String QUERY_DATA_SQL = "SELECT id, value FROM test_007 WHERE id=?";
     private static final String DELETE_DATA_SQL = "DELETE FROM test_007 WHERE id=?";
     private static final String DROP_TABLE_SQL = "DROP table test_007";
-    private static final String CREATE_PROCEDURE_SQL = "create procedure testProcedure(IN id varchar(10)) \n begin \n select id; \n end";
-    private static final String CALL_PROCEDURE_SQL = "call testProcedure( ? )";
-    private static final String DROP_PROCEDURE_SQL = "drop procedure testProcedure";
-    
+
     @RequestMapping("/mysql-scenario")
     @ResponseBody
     public String testcase() throws Exception {
@@ -49,11 +48,8 @@ public class CaseController {
             sqlExecute.createTable(CREATE_TABLE_SQL);
             sqlExecute.insertData(INSERT_DATA_SQL, "1", "1");
             sqlExecute.dropTable(DROP_TABLE_SQL);
-            sqlExecute.createProcedure(CREATE_PROCEDURE_SQL);
-            sqlExecute.callProcedure(CALL_PROCEDURE_SQL, "nihao");
-            sqlExecute.dropProcedure(DROP_PROCEDURE_SQL);
         } catch (Exception e) {
-            LOGGER.error("Failed to execute sql.", e);
+            logger.error("Failed to execute sql.", e);
             throw e;
         }
         return SUCCESS;

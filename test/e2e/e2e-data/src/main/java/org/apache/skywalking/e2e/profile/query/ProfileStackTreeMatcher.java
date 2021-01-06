@@ -23,6 +23,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
 import org.apache.skywalking.e2e.verification.AbstractMatcher;
+import org.assertj.core.api.Assertions;
 
 @Data
 @ToString(callSuper = true)
@@ -33,22 +34,12 @@ public class ProfileStackTreeMatcher extends AbstractMatcher<ProfileAnalyzation.
 
     @Override
     public void verify(ProfileAnalyzation.ProfileStackTree profileStackTree) {
+        Assertions.assertThat(profileStackTree.getElements()).hasSameSizeAs(this.elements);
+
         int size = this.elements.size();
 
         for (int i = 0; i < size; i++) {
-            boolean hasVerified = false;
-            for (int dataElement = 0; dataElement < profileStackTree.getElements().size(); dataElement++) {
-                try {
-                    elements.get(i).verify(profileStackTree.getElements().get(dataElement));
-                    hasVerified = true;
-                    break;
-                } catch (Throwable e) {
-                }
-            }
-
-            if (!hasVerified) {
-                throw new IllegalStateException("Cannot found " + elements.get(i).getCodeSignature());
-            }
+            elements.get(i).verify(profileStackTree.getElements().get(i));
         }
     }
 }

@@ -86,9 +86,6 @@ public enum DataTTLKeeperTimer {
 
     private void execute(Model model) {
         try {
-            if (!model.isTimeSeries()) {
-                return;
-            }
             moduleManager.find(StorageModule.NAME)
                          .provider()
                          .getService(IHistoryDeleteDAO.class)

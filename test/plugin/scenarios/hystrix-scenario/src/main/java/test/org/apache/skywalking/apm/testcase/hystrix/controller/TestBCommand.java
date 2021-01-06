@@ -25,7 +25,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class TestBCommand extends HystrixCommand<String> {
-    private static final Logger LOGGER = LogManager.getLogger(TestACommand.class);
+    private Logger logger = LogManager.getLogger(TestACommand.class);
 
     private String name;
 
@@ -41,20 +41,20 @@ public class TestBCommand extends HystrixCommand<String> {
     @Override
     protected String run() throws Exception {
         try {
-            LOGGER.info("start run: " + Thread.currentThread().getId());
+            logger.info("start run: " + Thread.currentThread().getId());
             return "Hello " + name + "!";
         } finally {
-            LOGGER.info("start end");
+            logger.info("start end");
         }
     }
 
     @Override
     protected String getFallback() {
         try {
-            LOGGER.info("getFallback run: " + Thread.currentThread().getId());
+            logger.info("getFallback run: " + Thread.currentThread().getId());
             return "failed";
         } finally {
-            LOGGER.info("getFallback end");
+            logger.info("getFallback end");
         }
     }
 }

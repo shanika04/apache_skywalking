@@ -30,11 +30,9 @@ public class JDBCPreparedStatementSetterInterceptor implements InstanceMethodsAr
     public final void beforeMethod(EnhancedInstance objInst, Method method, Object[] allArguments,
         Class<?>[] argumentsTypes, MethodInterceptResult result) throws Throwable {
         final StatementEnhanceInfos statementEnhanceInfos = (StatementEnhanceInfos) objInst.getSkyWalkingDynamicField();
-        if (statementEnhanceInfos != null) {
-          final int index = (Integer) allArguments[0];
-          final Object parameter = allArguments[1];
-          statementEnhanceInfos.setParameter(index, parameter);
-        }
+        final int index = (Integer) allArguments[0];
+        final Object parameter = allArguments[1];
+        statementEnhanceInfos.setParameter(index, parameter);
     }
 
     @Override

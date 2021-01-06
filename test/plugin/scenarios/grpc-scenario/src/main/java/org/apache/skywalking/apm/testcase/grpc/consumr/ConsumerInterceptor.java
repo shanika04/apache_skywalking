@@ -33,76 +33,76 @@ import org.apache.logging.log4j.Logger;
 
 public class ConsumerInterceptor implements ClientInterceptor {
 
-    private static final Logger LOGGER = LogManager.getLogger(ConsumerInterceptor.class);
+    private Logger logger = LogManager.getLogger(ConsumerInterceptor.class);
 
     @Override
-    public <REQ_T, RESP_T> ClientCall<REQ_T, RESP_T> interceptCall(MethodDescriptor<REQ_T, RESP_T> descriptor,
-                                                                   CallOptions options, Channel channel) {
-        LOGGER.info("start interceptor!");
-        LOGGER.info("method type: {}", descriptor.getType());
-        return new ForwardingClientCall.SimpleForwardingClientCall<REQ_T, RESP_T>(channel.newCall(descriptor, options)) {
+    public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> descriptor,
+        CallOptions options, Channel channel) {
+        logger.info("start interceptor!");
+        logger.info("method type: {}", descriptor.getType());
+        return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(channel.newCall(descriptor, options)) {
             @Override
-            public void start(Listener<RESP_T> responseListener, Metadata headers) {
-                LOGGER.info("Peer: {}", channel.authority());
-                LOGGER.info("Operation Name : {}", descriptor.getFullMethodName());
-                Interceptor<RESP_T> tracingResponseListener = new Interceptor(responseListener);
+            public void start(Listener<RespT> responseListener, Metadata headers) {
+                logger.info("Peer: {}", channel.authority());
+                logger.info("Operation Name : {}", descriptor.getFullMethodName());
+                Interceptor<RespT> tracingResponseListener = new Interceptor(responseListener);
                 tracingResponseListener.contextSnapshot = "contextSnapshot";
                 delegate().start(tracingResponseListener, headers);
             }
 
             @Override
             public void cancel(@Nullable String message, @Nullable Throwable cause) {
-                LOGGER.info("cancel");
+                logger.info("cancel");
                 super.cancel(message, cause);
             }
 
             @Override
             public void halfClose() {
-                LOGGER.info("halfClose");
+                logger.info("halfClose");
                 super.halfClose();
             }
 
             @Override
-            public void sendMessage(REQ_T message) {
-                LOGGER.info("sendMessage ....");
+            public void sendMessage(ReqT message) {
+                logger.info("sendMessage ....");
                 super.sendMessage(message);
             }
         };
     }
 
-    private static class Interceptor<RESP_T> extends ForwardingClientCallListener.SimpleForwardingClientCallListener<RESP_T> {
-        private static final Logger LOGGER = LogManager.getLogger(Interceptor.class);
+    private static class Interceptor<RespT> extends ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT> {
+        private Logger logger = LogManager.getLogger(Interceptor.class);
 
         private Object contextSnapshot;
 
-        protected Interceptor(ClientCall.Listener<RESP_T> delegate) {
+        protected Interceptor(ClientCall.Listener<RespT> delegate) {
             super(delegate);
         }
 
         @Override
         public void onHeaders(Metadata headers) {
-            LOGGER.info("on Headers");
+            logger.info("on Headers");
             for (String key : headers.keys()) {
-                LOGGER.info("Receive key: {}", key);
+                logger.info("Receive key: {}", key);
             }
             delegate().onHeaders(headers);
         }
 
         @Override
-        public void onMessage(RESP_T message) {
-            LOGGER.info("contextSnapshot: {}", contextSnapshot);
+        public void onMessage(RespT message) {
+            logger.info("contextSnapshot: {}", contextSnapshot);
             delegate().onMessage(message);
         }
 
         @Override
         public void onClose(Status status, Metadata trailers) {
-            LOGGER.info("on close");
+            logger.info("on close");
             delegate().onClose(status, trailers);
         }
 
         @Override
         public void onReady() {
-            LOGGER.info("on Ready");
+            logger.info("on Ready");
             super.onReady();
         }
     }

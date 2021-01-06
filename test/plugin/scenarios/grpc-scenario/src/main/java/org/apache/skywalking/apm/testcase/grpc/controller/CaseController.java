@@ -30,11 +30,7 @@ import javax.annotation.PostConstruct;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.skywalking.apm.testcase.grpc.consumr.ConsumerInterceptor;
-import org.apache.skywalking.apm.testcase.grpc.proto.GreeterBlockingErrorGrpc;
-import org.apache.skywalking.apm.testcase.grpc.proto.GreeterBlockingGrpc;
-import org.apache.skywalking.apm.testcase.grpc.proto.GreeterGrpc;
-import org.apache.skywalking.apm.testcase.grpc.proto.HelloRequest;
-import org.apache.skywalking.apm.testcase.grpc.proto.HelloReply;
+import org.apache.skywalking.apm.testcase.grpc.proto.*;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,11 +39,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/case")
 public class CaseController {
 
-    private static final Logger LOGGER = LogManager.getLogger(CaseController.class);
+    private static final Logger logger = LogManager.getLogger(CaseController.class);
 
     private static final String SUCCESS = "Success";
 
-    private final String grpcProviderHost = "127.0.0.1";
+    private final String gprcProviderHost = "127.0.0.1";
     private final int grpcProviderPort = 18080;
     private ManagedChannel channel;
     private GreeterGrpc.GreeterStub greeterStub;
@@ -56,7 +52,7 @@ public class CaseController {
 
     @PostConstruct
     public void up() {
-        channel = ManagedChannelBuilder.forAddress(grpcProviderHost, grpcProviderPort).usePlaintext(true).build();
+        channel = ManagedChannelBuilder.forAddress(gprcProviderHost, grpcProviderPort).usePlaintext(true).build();
         greeterStub = GreeterGrpc.newStub(ClientInterceptors.intercept(channel, new ConsumerInterceptor()));
         greeterBlockingStub = GreeterBlockingGrpc.newBlockingStub(ClientInterceptors.intercept(channel, new ConsumerInterceptor()));
         greeterBlockingErrorStub = GreeterBlockingErrorGrpc.newBlockingStub(ClientInterceptors.intercept(channel, new ConsumerInterceptor()));
@@ -109,16 +105,16 @@ public class CaseController {
 
             @Override
             public void onNext(HelloReply reply) {
-                LOGGER.info("Receive an message from provider. message: {}", reply.getMessage());
+                logger.info("Receive an message from provider. message: {}", reply.getMessage());
                 requestStream.request(1);
             }
 
             public void onError(Throwable throwable) {
-                LOGGER.error("Failed to send data", throwable);
+                logger.error("Failed to send data", throwable);
             }
 
             public void onCompleted() {
-                LOGGER.info("All Done");
+                logger.info("All Done");
             }
         };
 

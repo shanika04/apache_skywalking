@@ -18,7 +18,7 @@
 
 package org.apache.skywalking.oap.server.core.storage.model;
 
-import lombok.RequiredArgsConstructor;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.oap.server.core.CoreModule;
 import org.apache.skywalking.oap.server.core.RunningMode;
@@ -29,52 +29,63 @@ import org.apache.skywalking.oap.server.library.module.ModuleManager;
 /**
  * The core module installation controller.
  */
-@RequiredArgsConstructor
 @Slf4j
-public abstract class ModelInstaller implements ModelCreator.CreatingListener {
-    protected final Client client;
+public abstract class ModelInstaller {
     private final ModuleManager moduleManager;
 
-    public void whenCreating(Model model) throws StorageException {
+    public ModelInstaller(ModuleManager moduleManager) {
+        this.moduleManager = moduleManager;
+    }
+
+    /**
+     * Entrance of the storage entity installation work.
+     */
+    public final void install(Client client) throws StorageException {
+        IModelManager modelGetter = moduleManager.find(CoreModule.NAME).provider().getService(IModelManager.class);
+
+        List<Model> models = modelGetter.allModels();
+
         if (RunningMode.isNoInitMode()) {
-            while (!isExists(model)) {
-                try {
-                    log.info(
-                        "table: {} does not exist. OAP is running in 'no-init' mode, waiting... retry 3s later.",
-                        model
-                            .getName()
-                    );
-                    Thread.sleep(3000L);
-                } catch (InterruptedException e) {
-                    log.error(e.getMessage());
+            for (Model model : models) {
+                while (!isExists(client, model)) {
+                    try {
+                        log.info(
+                            "table: {} does not exist. OAP is running in 'no-init' mode, waiting... retry 3s later.",
+                            model
+                                .getName()
+                        );
+                        Thread.sleep(3000L);
+                    } catch (InterruptedException e) {
+                        log.error(e.getMessage());
+                    }
                 }
             }
         } else {
-            if (!isExists(model)) {
-                log.info("table: {} does not exist", model.getName());
-                createTable(model);
+            for (Model model : models) {
+                if (!isExists(client, model)) {
+                    log.info("table: {} does not exist", model.getName());
+                    createTable(client, model);
+                }
             }
         }
     }
 
     /**
      * Installer implementation could use this API to request a column name replacement. This method delegates for
-     * {@link ModelManipulator}.
+     * {@link IModelOverride}.
      */
     protected final void overrideColumnName(String columnName, String newName) {
-        ModelManipulator modelOverride = moduleManager.find(CoreModule.NAME)
-                                                      .provider()
-                                                      .getService(ModelManipulator.class);
+        IModelOverride modelOverride = moduleManager.find(CoreModule.NAME).provider().getService(IModelOverride.class);
         modelOverride.overrideColumnName(columnName, newName);
     }
 
     /**
      * Check whether the storage entity exists. Need to implement based on the real storage.
      */
-    protected abstract boolean isExists(Model model) throws StorageException;
+    protected abstract boolean isExists(Client client, Model model) throws StorageException;
 
     /**
-     * Create the storage entity. All creations should be after the {@link #isExists(Model)} check.
+     * Create the storage entity. All creations should be after the {@link #isExists(Client, Model)} check.
      */
-    protected abstract void createTable(Model model) throws StorageException;
+    protected abstract void createTable(Client client, Model model) throws StorageException;
 }

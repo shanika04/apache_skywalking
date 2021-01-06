@@ -18,24 +18,37 @@
 
 package org.apache.skywalking.oap.server.receiver.trace.provider;
 
-import org.apache.skywalking.oap.server.analyzer.module.AnalyzerModule;
 import org.apache.skywalking.oap.server.configuration.api.ConfigurationModule;
+import org.apache.skywalking.oap.server.configuration.api.DynamicConfigurationService;
 import org.apache.skywalking.oap.server.core.CoreModule;
 import org.apache.skywalking.oap.server.core.server.GRPCHandlerRegister;
 import org.apache.skywalking.oap.server.core.server.JettyHandlerRegister;
 import org.apache.skywalking.oap.server.library.module.ModuleConfig;
 import org.apache.skywalking.oap.server.library.module.ModuleDefine;
 import org.apache.skywalking.oap.server.library.module.ModuleProvider;
+import org.apache.skywalking.oap.server.library.module.ModuleStartException;
 import org.apache.skywalking.oap.server.library.module.ServiceNotProvidedException;
 import org.apache.skywalking.oap.server.receiver.sharing.server.SharingServerModule;
 import org.apache.skywalking.oap.server.receiver.trace.module.TraceModule;
 import org.apache.skywalking.oap.server.receiver.trace.provider.handler.v8.grpc.TraceSegmentReportServiceHandler;
-import org.apache.skywalking.oap.server.receiver.trace.provider.handler.v8.grpc.TraceSegmentReportServiceHandlerCompat;
-import org.apache.skywalking.oap.server.receiver.trace.provider.handler.v8.rest.TraceSegmentReportListServletHandler;
-import org.apache.skywalking.oap.server.receiver.trace.provider.handler.v8.rest.TraceSegmentReportSingleServletHandler;
+import org.apache.skywalking.oap.server.receiver.trace.provider.handler.v8.rest.TraceSegmentReportServletHandler;
+import org.apache.skywalking.oap.server.receiver.trace.provider.parser.ISegmentParserService;
+import org.apache.skywalking.oap.server.receiver.trace.provider.parser.SegmentParserListenerManager;
+import org.apache.skywalking.oap.server.receiver.trace.provider.parser.SegmentParserServiceImpl;
+import org.apache.skywalking.oap.server.receiver.trace.provider.parser.listener.MultiScopesAnalysisListener;
+import org.apache.skywalking.oap.server.receiver.trace.provider.parser.listener.NetworkAddressAliasMappingListener;
+import org.apache.skywalking.oap.server.receiver.trace.provider.parser.listener.SegmentAnalysisListener;
 import org.apache.skywalking.oap.server.telemetry.TelemetryModule;
 
 public class TraceModuleProvider extends ModuleProvider {
+
+    private final TraceServiceModuleConfig moduleConfig;
+    private DBLatencyThresholdsAndWatcher thresholds;
+    private UninstrumentedGatewaysConfig uninstrumentedGatewaysConfig;
+
+    public TraceModuleProvider() {
+        this.moduleConfig = new TraceServiceModuleConfig();
+    }
 
     @Override
     public String name() {
@@ -49,29 +62,42 @@ public class TraceModuleProvider extends ModuleProvider {
 
     @Override
     public ModuleConfig createConfigBeanIfAbsent() {
-        return null;
+        return moduleConfig;
     }
 
     @Override
     public void prepare() throws ServiceNotProvidedException {
+        thresholds = new DBLatencyThresholdsAndWatcher(moduleConfig.getSlowDBAccessThreshold(), this);
 
+        uninstrumentedGatewaysConfig = new UninstrumentedGatewaysConfig(this);
+
+        moduleConfig.setDbLatencyThresholdsAndWatcher(thresholds);
+        moduleConfig.setUninstrumentedGatewaysConfig(uninstrumentedGatewaysConfig);
+
+        this.registerServiceImplementation(
+            ISegmentParserService.class, new SegmentParserServiceImpl(getManager(), listenerManager(), moduleConfig));
     }
 
     @Override
-    public void start() {
+    public void start() throws ModuleStartException {
+        DynamicConfigurationService dynamicConfigurationService = getManager().find(ConfigurationModule.NAME)
+                                                                              .provider()
+                                                                              .getService(
+                                                                                  DynamicConfigurationService.class);
         GRPCHandlerRegister grpcHandlerRegister = getManager().find(SharingServerModule.NAME)
                                                               .provider()
                                                               .getService(GRPCHandlerRegister.class);
         JettyHandlerRegister jettyHandlerRegister = getManager().find(SharingServerModule.NAME)
                                                                 .provider()
                                                                 .getService(JettyHandlerRegister.class);
+        dynamicConfigurationService.registerConfigChangeWatcher(thresholds);
+        dynamicConfigurationService.registerConfigChangeWatcher(uninstrumentedGatewaysConfig);
 
-        TraceSegmentReportServiceHandler traceSegmentReportServiceHandler = new TraceSegmentReportServiceHandler(getManager());
-        grpcHandlerRegister.addHandler(traceSegmentReportServiceHandler);
-        grpcHandlerRegister.addHandler(new TraceSegmentReportServiceHandlerCompat(traceSegmentReportServiceHandler));
+        grpcHandlerRegister.addHandler(
+            new TraceSegmentReportServiceHandler(getManager(), listenerManager(), moduleConfig));
 
-        jettyHandlerRegister.addHandler(new TraceSegmentReportListServletHandler(getManager()));
-        jettyHandlerRegister.addHandler(new TraceSegmentReportSingleServletHandler(getManager()));
+        jettyHandlerRegister.addHandler(
+            new TraceSegmentReportServletHandler(getManager(), listenerManager(), moduleConfig));
     }
 
     @Override
@@ -84,10 +110,19 @@ public class TraceModuleProvider extends ModuleProvider {
         return new String[] {
             TelemetryModule.NAME,
             CoreModule.NAME,
-            AnalyzerModule.NAME,
             SharingServerModule.NAME,
             ConfigurationModule.NAME
         };
     }
 
+    private SegmentParserListenerManager listenerManager() {
+        SegmentParserListenerManager listenerManager = new SegmentParserListenerManager();
+        if (moduleConfig.isTraceAnalysis()) {
+            listenerManager.add(new MultiScopesAnalysisListener.Factory());
+            listenerManager.add(new NetworkAddressAliasMappingListener.Factory());
+        }
+        listenerManager.add(new SegmentAnalysisListener.Factory(moduleConfig.getSampleRate()));
+
+        return listenerManager;
+    }
 }

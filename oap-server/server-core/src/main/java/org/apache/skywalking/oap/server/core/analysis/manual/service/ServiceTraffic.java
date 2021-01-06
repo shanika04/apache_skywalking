@@ -35,21 +35,15 @@ import org.apache.skywalking.oap.server.core.source.DefaultScopeDefine;
 import org.apache.skywalking.oap.server.core.storage.StorageBuilder;
 import org.apache.skywalking.oap.server.core.storage.annotation.Column;
 
-import static org.apache.skywalking.oap.server.core.Const.DOUBLE_COLONS_SPLIT;
-
 @Stream(name = ServiceTraffic.INDEX_NAME, scopeId = DefaultScopeDefine.SERVICE,
     builder = ServiceTraffic.Builder.class, processor = MetricsStreamProcessor.class)
 @MetricsExtension(supportDownSampling = false, supportUpdate = false)
-@EqualsAndHashCode(of = {
-    "name",
-    "nodeType"
-})
+@EqualsAndHashCode
 public class ServiceTraffic extends Metrics {
     public static final String INDEX_NAME = "service_traffic";
 
     public static final String NAME = "name";
     public static final String NODE_TYPE = "node_type";
-    public static final String GROUP = "service_group";
 
     @Setter
     @Getter
@@ -60,11 +54,6 @@ public class ServiceTraffic extends Metrics {
     @Getter
     @Column(columnName = NODE_TYPE)
     private NodeType nodeType;
-
-    @Setter
-    @Getter
-    @Column(columnName = GROUP)
-    private String group;
 
     @Override
     public String id() {
@@ -80,8 +69,6 @@ public class ServiceTraffic extends Metrics {
     public void deserialize(final RemoteData remoteData) {
         setName(remoteData.getDataStrings(0));
         setNodeType(NodeType.valueOf(remoteData.getDataIntegers(0)));
-        // Time bucket is not a part of persistent, but still is required in the first time insert.
-        setTimeBucket(remoteData.getDataLongs(0));
     }
 
     @Override
@@ -89,8 +76,6 @@ public class ServiceTraffic extends Metrics {
         final RemoteData.Builder builder = RemoteData.newBuilder();
         builder.addDataStrings(name);
         builder.addDataIntegers(nodeType.value());
-        // Time bucket is not a part of persistent, but still is required in the first time insert.
-        builder.addDataLongs(getTimeBucket());
         return builder;
     }
 
@@ -101,23 +86,14 @@ public class ServiceTraffic extends Metrics {
             ServiceTraffic serviceTraffic = new ServiceTraffic();
             serviceTraffic.setName((String) dbMap.get(NAME));
             serviceTraffic.setNodeType(NodeType.valueOf(((Number) dbMap.get(NODE_TYPE)).intValue()));
-            serviceTraffic.setGroup((String) dbMap.get(GROUP));
             return serviceTraffic;
         }
 
         @Override
         public Map<String, Object> data2Map(final ServiceTraffic storageData) {
-            final String serviceName = storageData.getName();
-            if (NodeType.Normal.equals(storageData.getNodeType())) {
-                int groupIdx = serviceName.indexOf(DOUBLE_COLONS_SPLIT);
-                if (groupIdx > 0) {
-                    storageData.setGroup(serviceName.substring(0, groupIdx));
-                }
-            }
             Map<String, Object> map = new HashMap<>();
-            map.put(NAME, serviceName);
+            map.put(NAME, storageData.getName());
             map.put(NODE_TYPE, storageData.getNodeType().value());
-            map.put(GROUP, storageData.getGroup());
             return map;
         }
     }

@@ -18,15 +18,19 @@
 
 package org.apache.skywalking.oap.server.core.alarm;
 
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
 /**
  * Alarm message represents the details of each alarm.
  */
-@Setter
-@Getter
+@Setter(AccessLevel.PUBLIC)
+@Getter(AccessLevel.PUBLIC)
 public class AlarmMessage {
+
+    public static AlarmMessage NONE = new NoAlarm();
+
     private int scopeId;
     private String scope;
     private String name;
@@ -35,5 +39,8 @@ public class AlarmMessage {
     private String ruleName;
     private String alarmMessage;
     private long startTime;
-    private transient boolean onlyAsCondition;
+
+    private static class NoAlarm extends AlarmMessage {
+
+    }
 }

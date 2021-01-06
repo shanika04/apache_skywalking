@@ -31,11 +31,7 @@ import java.util.Set;
  */
 public enum PropertyPlaceholderHelper {
 
-    INSTANCE(
-        PlaceholderConfigurerSupport.DEFAULT_PLACEHOLDER_PREFIX,
-        PlaceholderConfigurerSupport.DEFAULT_PLACEHOLDER_SUFFIX, PlaceholderConfigurerSupport.DEFAULT_VALUE_SEPARATOR,
-        true
-    );
+    INSTANCE(PlaceholderConfigurerSupport.DEFAULT_PLACEHOLDER_PREFIX, PlaceholderConfigurerSupport.DEFAULT_PLACEHOLDER_SUFFIX, PlaceholderConfigurerSupport.DEFAULT_VALUE_SEPARATOR, true);
 
     private final String placeholderPrefix;
 
@@ -58,7 +54,7 @@ public enum PropertyPlaceholderHelper {
      *                                       true}) or cause an exception ({@code false})
      */
     PropertyPlaceholderHelper(String placeholderPrefix, String placeholderSuffix, String valueSeparator,
-                              boolean ignoreUnresolvablePlaceholders) {
+        boolean ignoreUnresolvablePlaceholders) {
         if (StringUtil.isEmpty(placeholderPrefix) || StringUtil.isEmpty(placeholderSuffix)) {
             throw new UnsupportedOperationException("'placeholderPrefix or placeholderSuffix' must not be null");
         }
@@ -93,17 +89,17 @@ public enum PropertyPlaceholderHelper {
         return replacePlaceholders(value, new PlaceholderResolver() {
             @Override
             public String resolvePlaceholder(String placeholderName) {
-                return getConfigValue(placeholderName, properties);
+                return PropertyPlaceholderHelper.this.getConfigValue(placeholderName, properties);
             }
         });
     }
 
     private String getConfigValue(String key, final Properties properties) {
         String value = System.getProperty(key);
-        if (value == null) {
+        if (StringUtil.isEmpty(value)) {
             value = System.getenv(key);
         }
-        if (value == null) {
+        if (StringUtil.isEmpty(value)) {
             value = properties.getProperty(key);
         }
         return value;
@@ -122,7 +118,7 @@ public enum PropertyPlaceholderHelper {
     }
 
     protected String parseStringValue(String value, PlaceholderResolver placeholderResolver,
-                                      Set<String> visitedPlaceholders) {
+        Set<String> visitedPlaceholders) {
 
         StringBuilder result = new StringBuilder(value);
 
@@ -133,8 +129,7 @@ public enum PropertyPlaceholderHelper {
                 String placeholder = result.substring(startIndex + this.placeholderPrefix.length(), endIndex);
                 String originalPlaceholder = placeholder;
                 if (!visitedPlaceholders.add(originalPlaceholder)) {
-                    throw new IllegalArgumentException(
-                        "Circular placeholder reference '" + originalPlaceholder + "' in property definitions");
+                    throw new IllegalArgumentException("Circular placeholder reference '" + originalPlaceholder + "' in property definitions");
                 }
                 // Recursive invocation, parsing placeholders contained in the placeholder key.
                 placeholder = parseStringValue(placeholder, placeholderResolver, visitedPlaceholders);
@@ -161,8 +156,7 @@ public enum PropertyPlaceholderHelper {
                     // Proceed with unprocessed value.
                     startIndex = result.indexOf(this.placeholderPrefix, endIndex + this.placeholderSuffix.length());
                 } else {
-                    throw new IllegalArgumentException(
-                        "Could not resolve placeholder '" + placeholder + "'" + " in value \"" + value + "\"");
+                    throw new IllegalArgumentException("Could not resolve placeholder '" + placeholder + "'" + " in value \"" + value + "\"");
                 }
                 visitedPlaceholders.remove(originalPlaceholder);
             } else {

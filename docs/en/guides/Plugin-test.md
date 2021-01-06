@@ -3,34 +3,33 @@
 Plugin test framework is designed for verifying the plugins' function and compatible status. As there are dozens of plugins and
 hundreds of versions need to be verified, it is impossible to do manually.
 The test framework uses container based tech stack, requires a set of real services with agent installed, then the test mock
-OAP backend is running to check the segments data sent from agents.
+OAP backend is running to check the segments and register data sent from agents.
 
 Every plugin maintained in the main repo requires corresponding test cases, also matching the versions in the supported list doc.
 
 ## Environment Requirements
 
 1. MacOS/Linux
-2. JDK 8+
+2. jdk 8+
 3. Docker
 4. Docker Compose
 
 ## Case Base Image Introduction
 
-The test framework provides `JVM-container` and `Tomcat-container` base images including JDK8, JDK14. You could choose the suitable one for your test case, if both are suitable, **`JVM-container` is preferred**.
+The test framework provides `JVM-container` and `Tomcat-container` base images. You could choose the suitable one for your test case, if either is suitable, **recommend choose `JVM-container`**.
 
 ### JVM-container Image Introduction
 
-[JVM-container](../../../test/plugin/containers/jvm-container) uses `openjdk:8` as the base image. `JVM-container` has supported JDK14, which inherits `openjdk:14`.
+[JVM-container](../../../test/plugin/containers/jvm-container) uses `openjdk:8` as the base image.
 The test case project is required to be packaged as `project-name.zip`, including `startup.sh` and uber jar, by using `mvn clean package`.
 
 Take the following test projects as good examples
 * [sofarpc-scenario](../../../test/plugin/scenarios/sofarpc-scenario) as a single project case.
 * [webflux-scenario](../../../test/plugin/scenarios/webflux-scenario) as a case including multiple projects.
-* [jdk14-with-gson-scenario](../../../test/plugin/scenarios/jdk14-with-gson-scenario) as a single project case with JDK14.
 
 ### Tomcat-container Image Introduction
 
-[Tomcat-container](../../../test/plugin/containers/tomcat-container) uses `tomcat:8.5.57-jdk8-openjdk` or `tomcat:8.5.57-jdk14-openjdk` as the base image.
+[Tomcat-container](../../../test/plugin/containers/tomcat-container) uses `tomcat:8.5.42-jdk8-openjdk` as the base image.
 The test case project is required to be packaged as `project-name.war` by using `mvn package`.
 
 Take the following test project as a good example
@@ -91,19 +90,19 @@ The following files are required in every test case.
 File Name | Descriptions
 ---|---
 `configuration.yml` | Declare the basic case inform, including, case name, entrance endpoints, mode, dependencies.
-`expectedData.yaml` | Describe the expected segmentItems.
+`expectedData.yaml` | Describe the expected Segment(s), including two major parts, (1) Register metadata (2) Segments
 `support-version.list` | List the target versions for this case
 `startup.sh` |`JVM-container` only, don't need this when use`Tomcat-container`
 
-`*` support-version.list format requires every line for a single version(Contains only the last version number of each minor version). Could use `#` to comment out this version.
+`*` support-version.list format requires every line for a single version. Could use `#` to comment out this version.
 
 ### configuration.yml
 
 | Field | description
 | --- | ---
 | type | Image type, options, `jvm` or `tomcat`. Required.
-| entryService | The entrance endpoint(URL) for test case access. Required. (HTTP Method: GET)
-| healthCheck | The health check endpoint(URL) for test case access. Required. (HTTP Method: HEAD)
+| entryService | The entrance endpoint(URL) for test case access. Required.
+| healthCheck | The health check endpoint(URL) for test case access. Required.
 | startScript | Path of start up script. Required in `type: jvm` only.
 | framework | Case name.
 | runningMode | Running mode whether with the optional plugin, options, `default`(default), `with_optional`, `with_bootstrap`
@@ -189,7 +188,7 @@ as the version number, it will be changed in the test for every version.
 **Take following test cases as examples**
 * [dubbo-2.7.x with JVM-container](../../../test/plugin/scenarios/dubbo-2.7.x-scenario/configuration.yml)
 * [jetty with JVM-container](../../../test/plugin/scenarios/jetty-scenario/configuration.yml)
-* [gateway with runningMode](../../../test/plugin/scenarios/gateway-2.1.x-scenario/configuration.yml)
+* [gateway with runningMode](../../../test/plugin/scenarios/gateway-scenario/configuration.yml)
 * [canal with docker-compose](../../../test/plugin/scenarios/canal-scenario/configuration.yml)
 
 ### expectedData.yaml
@@ -211,11 +210,33 @@ as the version number, it will be changed in the test for every version.
 | `null` | Null or empty String |
 | `eq` | Equal(default) |
 
-**Expected Data Format Of The Segment**
+
+**Register verify description format**
 ```yml
-segmentItems:
+registryItems:
+  services:
+  - { SERVICE_NAME: SERVICE_ID(int) }
+  ...
+  instances:
+  - { SERVICE_CODE: INSTANCE_COUNT(int) }
+  ...
+  operationNames:
+  ...
+```
+
+
+| Field | Description
+| --- | ---
+| services | The registered service codes. Normally, not 0 should be enough.
+| instances | The number of service instances exists in this test case.
+| operationNames | Since 7.1.0, there is no operation name register. Ignore this.
+
+
+**Segment verify description format**
+```yml
+segments:
 -
-  serviceName: SERVICE_NAME(string)
+  serviceName: SERVICE_CODE(string)
   segmentSize: SEGMENT_SIZE(int)
   segments:
   - segmentId: SEGMENT_ID(string)
@@ -226,24 +247,26 @@ segmentItems:
 
 | Field |  Description
 | --- | ---  
-| serviceName | Service Name.
+| serviceName | Service code.
 | segmentSize | The number of segments is expected.
 | segmentId | trace ID.
 | spans | segment span list. Follow the next section to see how to describe every span.
 
-**Expected Data Format Of The Span**
+**Span verify description format**
 
 **Notice**: The order of span list should follow the order of the span finish time.
 
 ```yml
     operationName: OPERATION_NAME(string)
+    operationId: SPAN_ID(int)
     parentSpanId: PARENT_SPAN_ID(int)
     spanId: SPAN_ID(int)
     startTime: START_TIME(int)
     endTime: END_TIME(int)
     isError: IS_ERROR(string: true, false)
     spanLayer: SPAN_LAYER(string: DB, RPC_FRAMEWORK, HTTP, MQ, CACHE)
-    spanType: SPAN_TYPE(string: Exit, Entry, Local)
+    spanType: SPAN_TYPE(string: Exit, Entry, Local )
+    componentName: COMPONENT_NAME(string)
     componentId: COMPONENT_ID(int)
     tags:
     - {key: TAG_KEY(string), value: TAG_VALUE(string)}
@@ -252,87 +275,51 @@ segmentItems:
     - {key: LOG_KEY(string), value: LOG_VALUE(string)}
     ...
     peer: PEER(string)
+    peerId: PEER_ID(int)
     refs:
     - {
-       traceId: TRACE_ID(string),
-       parentTraceSegmentId: PARENT_TRACE_SEGMENT_ID(string),
        parentSpanId: PARENT_SPAN_ID(int),
-       parentService: PARENT_SERVICE(string),
-       parentServiceInstance: PARENT_SERVICE_INSTANCE(string),
-       parentEndpoint: PARENT_ENDPOINT_NAME(string),
+       parentTraceSegmentId: PARENT_TRACE_SEGMENT_ID(string),
+       entryServiceInstanceId: ENTRY_SERVICE_INSTANCE_ID(int)
+       parentServiceInstanceId: PARENT_SERVICE_INSTANCE_ID(int),
        networkAddress: NETWORK_ADDRESS(string),
-       refType:  REF_TYPE(string: CrossProcess, CrossThread)
+       networkAddressId: NETWORK_ADDRESS_ID(int),
+       parentEndpoint: PARENT_ENDPOINT_NAME(string),
+       parentEndpointId: PARENT_ENDPOINT_ID(int),
+       entryEndpoint: ENTRY_ENDPOINT_NAME(string),
+       entryServiceInstanceId: ENTRY_ENDPOINT_ID(int),
      }
    ...
 ```
 
 | Field | Description 
 |--- |--- 
-| operationName | Span Operation Name.
+| operationName | Span Operation Name 
+| operationId | Should be 0 for now 
 | parentSpanId | Parent span id. **Notice**: The parent span id of the first span should be -1. 
 | spanId | Span Id. **Notice**, start from 0. 
 | startTime | Span start time. It is impossible to get the accurate time, not 0 should be enough.
 | endTime | Span finish time. It is impossible to get the accurate time, not 0 should be enough.
 | isError | Span status, true or false. 
+| componentName | Component name, should be null in most cases, use component id instead.
 | componentId | Component id for your plugin. 
 | tags | Span tag list. **Notice**, Keep in the same order as the plugin coded.
 | logs | Span log list. **Notice**, Keep in the same order as the plugin coded.
-| SpanLayer | Options, DB, RPC_FRAMEWORK, HTTP, MQ, CACHE.
-| SpanType | Span type, options, Exit, Entry or Local.
+| SpanLayer | Options, DB, RPC_FRAMEWORK, HTTP, MQ, CACHE 
+| SpanType | Span type, options, Exit, Entry or Local 
 | peer | Remote network address, IP + port mostly. For exit span, this should be required. 
+| peerId | Not 0 for now.
 
-The verify description for SegmentRef
+
+The verify description for SegmentRef,
 
 | Field | Description 
 |---- |---- 
-| traceId | 
-| parentTraceSegmentId | Parent SegmentId, pointing to the segment id in the parent segment.
 | parentSpanId | Parent SpanID, pointing to the span id in the parent segment.
-| parentService | The service of parent/downstream service name.
-| parentServiceInstance | The instance of parent/downstream service instance name.
-| parentEndpoint |  The endpoint of parent/downstream service.
-| networkAddress | The peer value of parent exit span.
-| refType | Ref type, options, CrossProcess or CrossThread.
-
-**Expected Data Format Of The Meter Items**
-```yml
-meterItems:
--
-  serviceName: SERVICE_NAME(string)
-  meterSize: METER_SIZE(int)
-  meters:
-  - ...
-```
-
-| Field |  Description
-| --- | ---  
-| serviceName | Service Name.
-| meterSize | The number of meters is expected.
-| meters | meter list. Follow the next section to see how to describe every meter.
-
-**Expected Data Format Of The Meter**
-
-```yml
-    meterId: 
-        name: NAME(string)
-        tags:
-        - {name: TAG_NAME(string), value: TAG_VALUE(string)}
-    singleValue: SINGLE_VALUE(double)
-    histogramBuckets:
-    - HISTOGRAM_BUCKET(double)
-    ...
-```
-
-The verify description for MeterId
-
-| Field | Description 
-|--- |--- 
-| name | meter name.
-| tags | meter tags.
-| tags.name | tag name.
-| tags.value | tag value.
-| singleValue | counter or gauge value. Using condition operate of the number to validate, such as `gt`, `ge`. If current meter is histogram, don't need to write this field.
-| histogramBuckets | histogram bucket. The bucket list must be ordered. The tool assert at least one bucket of the histogram having nonzero count. If current meter is counter or gauge, don't need to write this field.
+| entryServiceInstanceId/parentServiceInstanceId | Not 0 should be enough
+| networkAddress/networkAddressId | The peer value of parent exit span. `networkAddressId` should be 0, as the mock tool doesn't do register for real.
+| parentEndpoint/parentEndpointId | The endpoint of parent/downstream service. Usually set `parentEndpoint` as literal string name, unless there is no parent endpoint, set `parentEndpointId` as -1.
+| entryEndpoint/entryServiceInstanceId | The endpoint of first service in the distributed chain. Usually set `entryEndpoint` as literal string name, unless there is no endpoint at the entry service, set `entryServiceInstanceId` as -1.
 
 ### startup.sh
 
@@ -418,9 +405,9 @@ dependent services are database or cluster.
 Notice, because heartbeat service could be traced fully or partially, so, segmentSize in `expectedData.yaml` should use `ge` as the operator,
 and don't include the segments of heartbeat service in the expected segment data.
 
-### The example Process of Writing Tracing Expected Data
+### The example Process of Writing Expected Data
 
-Expected data file, `expectedData.yaml`, include `SegmentItems` part.
+Expected data file, `expectedData.yaml`, includes `RegistryItems` and `SegmentIntems`.
 
 We are using the HttpClient plugin to show how to write the expected data.
 
@@ -450,6 +437,24 @@ There are two key points of testing
       |                           |                                  |
       +                           +                                  +
 ```
+
+#### RegistryItems
+
+HttpClient test case is running in Tomcat container, only one instance exists, so
+1. instance number is 1
+1. applicationId is not 0
+1. Because we have two servlet mapping paths, so two operation names. No health check operation name here. 
+
+```yml
+registryItems:
+  services:
+  - {httpclient-case: nq 0}
+  instances:
+  - {httpclient-case: 1}
+  operationNames:
+  - httpclient-case: [/httpclient-case/case/httpclient,/httpclient-case/case/context-propagate] 
+```
+
 #### segmentItems
 
 By following the flow of HttpClient case, there should be two segments created.
@@ -457,7 +462,7 @@ By following the flow of HttpClient case, there should be two segments created.
 1. Segment represents the ContextPropagateServlet access. Let's name it as `SegmentB`.
 
 ```yml
-segmentItems:
+segments:
   - serviceName: httpclient-case
     segmentSize: ge 2 # Could have more than one health check segments, because, the dependency is not standby.
 ```
@@ -471,6 +476,7 @@ SegmentA span list should like following
     - segmentId: not null
       spans:
         - operationName: /httpclient-case/case/context-propagate
+          operationId: eq 0
           parentSpanId: 0
           spanId: 1
           startTime: nq 0
@@ -478,13 +484,16 @@ SegmentA span list should like following
           isError: false
           spanLayer: Http
           spanType: Exit
+          componentName: null
           componentId: eq 2
           tags:
             - {key: url, value: 'http://127.0.0.1:8080/httpclient-case/case/context-propagate'}
             - {key: http.method, value: GET}
           logs: []
-          peer: 127.0.0.1:8080
+          peer: null
+          peerId: eq 0
         - operationName: /httpclient-case/case/httpclient
+          operationId: eq 0
           parentSpanId: -1
           spanId: 0
           startTime: nq 0
@@ -492,12 +501,14 @@ SegmentA span list should like following
           spanLayer: Http
           isError: false
           spanType: Entry
+          componentName: null
           componentId: 1
           tags:
             - {key: url, value: 'http://localhost:{SERVER_OUTPUT_PORT}/httpclient-case/case/httpclient'}
             - {key: http.method, value: GET}
           logs: []
           peer: null
+          peerId: eq 0
 ```
 
 SegmentB should only have one Tomcat entry span, but includes the Ref pointing to SegmentA.
@@ -508,6 +519,7 @@ SegmentB span list should like following
   spans:
   -
    operationName: /httpclient-case/case/context-propagate
+   operationId: eq 0
    parentSpanId: -1
    spanId: 0
    tags:
@@ -519,84 +531,12 @@ SegmentB span list should like following
    spanLayer: Http
    isError: false
    spanType: Entry
+   componentName: null
    componentId: 1
    peer: null
+   peerId: eq 0
    refs:
-    - {parentEndpoint: /httpclient-case/case/httpclient, networkAddress: 'localhost:8080', refType: CrossProcess, parentSpanId: 1, parentTraceSegmentId: not null, parentServiceInstance: not null, parentService: not null, traceId: not null}
-```
-
-### The example Process of Writing Meter Expected Data
-
-Expected data file, `expectedData.yaml`, include `MeterItems` part.
-
-We are using the toolkit plugin to demonstrate how to write the expected data. When write the [meter plugin](Java-Plugin-Development-Guide.md#meter-plugin), the expected data file keeps the same.
-
-There is one key point of testing
-1. Build a meter and operate it.
-
-Such as `Counter`:
-```java
-MeterFactory.counter("test_counter").tag("ck1", "cv1").build().increment(1d);
-MeterFactory.histogram("test_histogram").tag("hk1", "hv1").steps(1d, 5d, 10d).build().addValue(2d);
-```
-
-```
-+-------------+         +------------------+
-|   Plugin    |         |    Agent core    |
-|             |         |                  |
-+-----|-------+         +---------|--------+
-      |                           |         
-      |                           |         
-      |    Build or operate      +-+        
-      +------------------------> |-|        
-      |                          |-]
-      |                          |-|        
-      |                          |-|        
-      |                          |-|
-      |                          |-|        
-      | <--------------------------|        
-      |                          +-+        
-      |                           |         
-      |                           |         
-      |                           |         
-      |                           |         
-      +                           +         
-```
-
-#### meterItems
-
-By following the flow of the toolkit case,  there should be two meters created.
-1. Meter `test_counter` created from `MeterFactory#counter`. Let's name it as `MeterA`.
-1. Meter `test_histogram` created from `MeterFactory#histogram`. Let's name it as `MeterB`.
-
-```yml
-meterItems:
-  - serviceName: toolkit-case
-    meterSize: 2
-```
-
-They're showing two kinds of meter, MeterA has a single value, MeterB has a histogram value.
-
-MeterA should like following, `counter` and `gauge` use the same data format.
-```yaml
-- meterId:
-    name: test_counter
-    tags:
-      - {name: ck1, value: cv1}
-  singleValue: gt 0
-```
-
-MeterB should like following.
-```yaml
-- meterId:
-    name: test_histogram
-    tags:
-      - {name: hk1, value: hv1}
-  histogramBuckets:
-    - 0.0
-    - 1.0
-    - 5.0
-    - 10.0
+   - {parentSpanId: 1, parentTraceSegmentId: "${httpclient-case[0]}", entryServiceName: "/httpclient-case/case/httpclient", networkAddress: "127.0.0.1:8080",parentServiceName: "/httpclient-case/case/httpclient",entryApplicationInstanceId: nq 0 }
 ```
 
 ## Local Test and Pull Request To The Upstream
@@ -618,14 +558,11 @@ rather than recompiling it every time.
 
 Use `${SKYWALKING_HOME}/test/plugin/run.sh -h` to know more command options.
 
-If the local test passed, then you could add it to `.github/workflows/plugins-test.<n>.yaml` file, which will drive the tests running on the GitHub Actions of official SkyWalking repository.
+If the local test passed, then you could add it to `.github/workflows/plugins-test.<n>.yaml` file, which will drive the tests running on the Github Actions of official SkyWalking repository.
 Based on your plugin's name, please add the test case into file `.github/workflows/plugins-test.<n>.yaml`, by alphabetical orders.
 
-Every test case is a GitHub Actions Job. Please use the scenario directory name as the case `name`,
+Every test case is a Github Actions Job. Please use the `<scenario name> + <version range> + (<supported version count>)` as the Job `title`, and the scenario directory as the Job `name`,
 mostly you'll just need to decide which file (`plugins-test.<n>.yaml`) to add your test case, and simply put one line (as follows) in it, take the existed cases as examples.
-You can run `python3 tools/select-group.py` to see which file contains the least cases and add your cases into it, in order to balance the running time of each group.
-
-If a test case required to run in JDK 14 environment, please add you test case into file `plugins-jdk14-test.<n>.yaml`.
 
 ```yaml
 jobs:
@@ -638,6 +575,6 @@ jobs:
       matrix:
         case:
           # ...
-          - <your scenario test directory name>
+          - { name: '<your case name>', title: '<PluginName, i.e. Spring> (<Supported Version Count, i.e 12>)' } # <<== insert one line by alphabetical orders
           # ...
 ```

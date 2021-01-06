@@ -18,27 +18,33 @@
 
 package org.apache.skywalking.oap.server.library.server.jetty;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
-
-@Setter
-@Getter
-@Builder
-public class JettyServerConfig {
+public abstract class JettyServerConfig {
 
     private String host;
     private int port;
     private String contextPath;
 
-    @Builder.Default
-    private int jettyMinThreads = 1;
-    @Builder.Default
-    private int jettyMaxThreads = 200;
-    @Builder.Default
-    private long jettyIdleTimeOut = 30000;
-    @Builder.Default
-    private int jettyAcceptorPriorityDelta = 0;
-    @Builder.Default
-    private int jettyAcceptQueueSize = 0;
+    public String getHost() {
+        return host;
+    }
+
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public void setPort(int port) {
+        this.port = port;
+    }
+
+    public String getContextPath() {
+        return contextPath;
+    }
+
+    public void setContextPath(String contextPath) {
+        this.contextPath = contextPath;
+    }
 }

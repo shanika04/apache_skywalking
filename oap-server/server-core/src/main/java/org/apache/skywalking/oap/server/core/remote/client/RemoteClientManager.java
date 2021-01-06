@@ -20,6 +20,9 @@ package org.apache.skywalking.oap.server.core.remote.client;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
+import io.grpc.netty.GrpcSslContexts;
+import io.netty.handler.ssl.SslContext;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -27,11 +30,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import javax.net.ssl.SSLException;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -40,7 +43,6 @@ import org.apache.skywalking.oap.server.core.cluster.ClusterNodesQuery;
 import org.apache.skywalking.oap.server.core.cluster.RemoteInstance;
 import org.apache.skywalking.oap.server.library.module.ModuleDefineHolder;
 import org.apache.skywalking.oap.server.library.module.Service;
-import org.apache.skywalking.oap.server.library.server.grpc.ssl.DynamicSslContext;
 import org.apache.skywalking.oap.server.telemetry.TelemetryModule;
 import org.apache.skywalking.oap.server.telemetry.api.GaugeMetrics;
 import org.apache.skywalking.oap.server.telemetry.api.MetricsCreator;
@@ -54,10 +56,10 @@ import org.slf4j.LoggerFactory;
  */
 public class RemoteClientManager implements Service {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RemoteClientManager.class);
+    private static final Logger logger = LoggerFactory.getLogger(RemoteClientManager.class);
 
     private final ModuleDefineHolder moduleDefineHolder;
-    private DynamicSslContext sslContext;
+    private SslContext sslContext;
     private ClusterNodesQuery clusterNodesQuery;
     private volatile List<RemoteClient> usingClients;
     private GaugeMetrics gauge;
@@ -65,24 +67,26 @@ public class RemoteClientManager implements Service {
 
     /**
      * Initial the manager for all remote communication clients.
-     *
      * @param moduleDefineHolder for looking up other modules
      * @param remoteTimeout      for cluster internal communication, in second unit.
-     * @param trustedCAFile      SslContext to verify server certificates.
+     * @param trustedCAFile         SslContext to verify server certificates.
      */
     public RemoteClientManager(ModuleDefineHolder moduleDefineHolder,
                                int remoteTimeout,
-                               String trustedCAFile) {
+                               File trustedCAFile) {
         this(moduleDefineHolder, remoteTimeout);
-        sslContext = DynamicSslContext.forClient(trustedCAFile);
+        try {
+            sslContext = GrpcSslContexts.forClient().trustManager(trustedCAFile).build();
+        } catch (SSLException e) {
+            throw new IllegalArgumentException(e);
+        }
     }
 
     /**
      * Initial the manager for all remote communication clients.
      *
      * Initial the manager for all remote communication clients.
-     *
-     * @param moduleDefineHolder for looking up other modules
+     *  @param moduleDefineHolder for looking up other modules
      * @param remoteTimeout      for cluster internal communication, in second unit.
      */
     public RemoteClientManager(final ModuleDefineHolder moduleDefineHolder, final int remoteTimeout) {
@@ -92,7 +96,6 @@ public class RemoteClientManager implements Service {
     }
 
     public void start() {
-        Optional.ofNullable(sslContext).ifPresent(DynamicSslContext::start);
         Executors.newSingleThreadScheduledExecutor().scheduleWithFixedDelay(this::refresh, 1, 5, TimeUnit.SECONDS);
     }
 
@@ -105,10 +108,7 @@ public class RemoteClientManager implements Service {
             gauge = moduleDefineHolder.find(TelemetryModule.NAME)
                                       .provider()
                                       .getService(MetricsCreator.class)
-                                      .createGauge(
-                                          "cluster_size", "Cluster size of current oap node", MetricsTag.EMPTY_KEY,
-                                          MetricsTag.EMPTY_VALUE
-                                      );
+                                      .createGauge("cluster_size", "Cluster size of current oap node", MetricsTag.EMPTY_KEY, MetricsTag.EMPTY_VALUE);
         }
         try {
             if (Objects.isNull(clusterNodesQuery)) {
@@ -121,8 +121,8 @@ public class RemoteClientManager implements Service {
                 }
             }
 
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("Refresh remote nodes collection.");
+            if (logger.isDebugEnabled()) {
+                logger.debug("Refresh remote nodes collection.");
             }
 
             List<RemoteInstance> instanceList = clusterNodesQuery.queryRemoteNodes();
@@ -131,20 +131,20 @@ public class RemoteClientManager implements Service {
 
             gauge.setValue(instanceList.size());
 
-            if (LOGGER.isDebugEnabled()) {
-                instanceList.forEach(instance -> LOGGER.debug("Cluster instance: {}", instance.toString()));
+            if (logger.isDebugEnabled()) {
+                instanceList.forEach(instance -> logger.debug("Cluster instance: {}", instance.toString()));
             }
 
             if (!compare(instanceList)) {
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("ReBuilding remote clients.");
+                if (logger.isDebugEnabled()) {
+                    logger.debug("ReBuilding remote clients.");
                 }
                 reBuildRemoteClients(instanceList);
             }
 
             printRemoteClientList();
         } catch (Throwable t) {
-            LOGGER.error(t.getMessage(), t);
+            logger.error(t.getMessage(), t);
         }
     }
 
@@ -152,10 +152,10 @@ public class RemoteClientManager implements Service {
      * Print the client list into log for confirm how many clients built.
      */
     private void printRemoteClientList() {
-        if (LOGGER.isDebugEnabled()) {
+        if (logger.isDebugEnabled()) {
             StringBuilder addresses = new StringBuilder();
             this.usingClients.forEach(client -> addresses.append(client.getAddress().toString()).append(","));
-            LOGGER.debug("Remote client list: {}", addresses);
+            logger.debug("Remote client list: {}", addresses);
         }
     }
 
@@ -192,24 +192,13 @@ public class RemoteClientManager implements Service {
      * @param remoteInstances Remote instance collection by query cluster config.
      */
     private void reBuildRemoteClients(List<RemoteInstance> remoteInstances) {
-        final Map<Address, RemoteClientAction> remoteClientCollection =
-            this.usingClients.stream()
-                             .collect(Collectors.toMap(
-                                 RemoteClient::getAddress,
-                                 client -> new RemoteClientAction(
-                                     client, Action.Close)
-                             ));
+        final Map<Address, RemoteClientAction> remoteClientCollection = this.usingClients.stream()
+                                                                                         .collect(Collectors.toMap(RemoteClient::getAddress, client -> new RemoteClientAction(client, Action.Close)));
 
-        final Map<Address, RemoteClientAction> latestRemoteClients =
-            remoteInstances.stream()
-                           .collect(Collectors.toMap(
-                               RemoteInstance::getAddress,
-                               remote -> new RemoteClientAction(
-                                   null, Action.Create)
-                           ));
+        final Map<Address, RemoteClientAction> latestRemoteClients = remoteInstances.stream()
+                                                                                    .collect(Collectors.toMap(RemoteInstance::getAddress, remote -> new RemoteClientAction(null, Action.Create)));
 
-        final Set<Address> unChangeAddresses = Sets.intersection(
-            remoteClientCollection.keySet(), latestRemoteClients.keySet());
+        final Set<Address> unChangeAddresses = Sets.intersection(remoteClientCollection.keySet(), latestRemoteClients.keySet());
 
         unChangeAddresses.stream()
                          .filter(remoteClientCollection::containsKey)
@@ -246,10 +235,7 @@ public class RemoteClientManager implements Service {
 
         remoteClientCollection.values()
                               .stream()
-                              .filter(remoteClientAction ->
-                                          remoteClientAction.getAction().equals(Action.Close)
-                                              && !remoteClientAction.getRemoteClient().getAddress().isSelf()
-                              )
+                              .filter(remoteClientAction -> remoteClientAction.getAction().equals(Action.Close))
                               .forEach(remoteClientAction -> remoteClientAction.getRemoteClient().close());
     }
 

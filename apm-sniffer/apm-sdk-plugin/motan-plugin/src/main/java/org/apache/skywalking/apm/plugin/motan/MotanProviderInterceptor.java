@@ -63,6 +63,7 @@ public class MotanProviderInterceptor implements InstanceMethodsAroundIntercepto
         if (response != null && response.getException() != null) {
             AbstractSpan span = ContextManager.activeSpan();
             span.log(response.getException());
+            span.errorOccurred();
         }
 
         ContextManager.stopSpan();
@@ -73,6 +74,7 @@ public class MotanProviderInterceptor implements InstanceMethodsAroundIntercepto
     public void handleMethodException(EnhancedInstance objInst, Method method, Object[] allArguments,
         Class<?>[] argumentsTypes, Throwable t) {
         AbstractSpan activeSpan = ContextManager.activeSpan();
+        activeSpan.errorOccurred();
         activeSpan.log(t);
     }
 

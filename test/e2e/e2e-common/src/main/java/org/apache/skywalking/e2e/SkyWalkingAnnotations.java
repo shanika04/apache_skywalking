@@ -20,17 +20,15 @@ package org.apache.skywalking.e2e;
 
 import com.google.common.base.Strings;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.LinkedList;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
@@ -48,7 +46,6 @@ import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.containers.wait.strategy.Wait;
 
-import static java.util.stream.Collectors.joining;
 import static org.apache.skywalking.e2e.utils.Yamls.load;
 
 /**
@@ -101,9 +98,6 @@ public final class SkyWalkingAnnotations {
         !Strings.isNullOrEmpty(System.getenv("GITHUB_WORKSPACE"))
             ? (System.getenv("GITHUB_WORKSPACE") + "/logs") : "/tmp/skywalking/logs";
     private static final Path LOG_DIR = Paths.get(LOG_DIR_ENV);
-
-    private static final List<String> REMOTE_SERVICE_NAMES = new LinkedList<>();
-    private static final int REMOTE_DEBUG_PORT = 5005;
 
     static {
         LOGGER.info("IDENTIFIER={}", IDENTIFIER);
@@ -170,17 +164,6 @@ public final class SkyWalkingAnnotations {
                 field.set(testClass, HostAndPort.builder().host(host).port(port).build());
             }
         }
-        if (!IS_CI) {
-            File portFile = new File("remote_real_port");
-            portFile.createNewFile();
-            FileWriter fileWriter = new FileWriter(portFile.getName());
-            for (String service : REMOTE_SERVICE_NAMES) {
-                fileWriter.write(String.format("%s-%s:%s\n", service, compose.getServiceHost(service, REMOTE_DEBUG_PORT),
-                        compose.getServicePort(service, REMOTE_DEBUG_PORT)));
-            }
-            fileWriter.flush();
-            fileWriter.close();
-        }
     }
 
     private static Optional<DockerComposeContainer<?>> initDockerComposeField(final Object testClass) throws Exception {
@@ -202,23 +185,6 @@ public final class SkyWalkingAnnotations {
         final List<File> files = Stream.of(dockerCompose.value()).map(Envs::resolve)
                                        .map(File::new).collect(Collectors.toList());
         final DockerComposeContainer<?> compose = new DockerComposeContainer<>(IDENTIFIER, files);
-
-        if (!IS_CI) {
-            List<String> filePathList =  files.stream().map(File::getAbsolutePath).collect(Collectors.toList());
-            try {
-                LOGGER.info("Parse files:{}", filePathList.stream().collect(joining(" ", " ", "")));
-                DockerComposeFile dockerComposeFile = DockerComposeFile.getAllConfigInfo(filePathList);
-
-                dockerComposeFile.getServices().forEach((service, ignored) -> {
-                    if (dockerComposeFile.isExposedPort(service, REMOTE_DEBUG_PORT)) {
-                        REMOTE_SERVICE_NAMES.add(service);
-                        compose.withExposedService(service, REMOTE_DEBUG_PORT, Wait.forListeningPort());
-                    }
-                });
-            } catch (IOException | InterruptedException e) {
-                LOGGER.error(e.getMessage(), e);
-            }
-        }
 
         for (final Field field : fields) {
             if (field.isAnnotationPresent(ContainerHost.class) && field.isAnnotationPresent(ContainerPort.class)) {
@@ -243,9 +209,7 @@ public final class SkyWalkingAnnotations {
         compose.withPull(true)
                .withLocalCompose(true)
                .withTailChildContainers(true)
-               .withRemoveImages(
-                   IS_CI ? DockerComposeContainer.RemoveImages.ALL : DockerComposeContainer.RemoveImages.LOCAL
-               );
+               .withRemoveImages(DockerComposeContainer.RemoveImages.LOCAL);
 
         if (IS_CI) {
             initLoggers(files, compose);

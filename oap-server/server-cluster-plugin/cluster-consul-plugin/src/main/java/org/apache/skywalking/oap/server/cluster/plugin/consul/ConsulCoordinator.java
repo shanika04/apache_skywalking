@@ -27,33 +27,22 @@ import com.orbitz.consul.model.agent.Registration;
 import com.orbitz.consul.model.health.ServiceHealth;
 import java.util.ArrayList;
 import java.util.List;
-
-import org.apache.skywalking.oap.server.core.cluster.ClusterHealthStatus;
 import org.apache.skywalking.oap.server.core.cluster.ClusterNodesQuery;
 import org.apache.skywalking.oap.server.core.cluster.ClusterRegister;
-import org.apache.skywalking.oap.server.core.cluster.OAPNodeChecker;
 import org.apache.skywalking.oap.server.core.cluster.RemoteInstance;
-import org.apache.skywalking.oap.server.core.cluster.ServiceQueryException;
 import org.apache.skywalking.oap.server.core.cluster.ServiceRegisterException;
 import org.apache.skywalking.oap.server.core.remote.client.Address;
-import org.apache.skywalking.oap.server.library.module.ModuleDefineHolder;
 import org.apache.skywalking.oap.server.library.util.CollectionUtils;
-import org.apache.skywalking.oap.server.telemetry.TelemetryModule;
-import org.apache.skywalking.oap.server.telemetry.api.HealthCheckMetrics;
-import org.apache.skywalking.oap.server.telemetry.api.MetricsCreator;
-import org.apache.skywalking.oap.server.telemetry.api.MetricsTag;
+import org.apache.skywalking.oap.server.telemetry.api.TelemetryRelatedContext;
 
 public class ConsulCoordinator implements ClusterRegister, ClusterNodesQuery {
 
-    private final ModuleDefineHolder manager;
     private final Consul client;
     private final String serviceName;
     private final ClusterModuleConsulConfig config;
     private volatile Address selfAddress;
-    private HealthCheckMetrics healthChecker;
 
-    public ConsulCoordinator(final ModuleDefineHolder manager, final ClusterModuleConsulConfig config, final Consul client) {
-        this.manager = manager;
+    public ConsulCoordinator(ClusterModuleConsulConfig config, Consul client) {
         this.config = config;
         this.client = client;
         this.serviceName = config.getServiceName();
@@ -61,32 +50,22 @@ public class ConsulCoordinator implements ClusterRegister, ClusterNodesQuery {
 
     @Override
     public List<RemoteInstance> queryRemoteNodes() {
+        HealthClient healthClient = client.healthClient();
+
+        // Discover only "passing" nodes
+        List<ServiceHealth> nodes = healthClient.getHealthyServiceInstances(serviceName).getResponse();
+
         List<RemoteInstance> remoteInstances = new ArrayList<>();
-        try {
-            initHealthChecker();
-            HealthClient healthClient = client.healthClient();
-            // Discover only "passing" nodes
-            List<ServiceHealth> nodes = healthClient.getHealthyServiceInstances(serviceName).getResponse();
-            if (CollectionUtils.isNotEmpty(nodes)) {
-                nodes.forEach(node -> {
-                    if (!Strings.isNullOrEmpty(node.getService().getAddress())) {
-                        Address address = new Address(node.getService().getAddress(), node.getService().getPort(), false);
-                        if (address.equals(selfAddress)) {
-                            address.setSelf(true);
-                        }
-                        remoteInstances.add(new RemoteInstance(address));
+        if (CollectionUtils.isNotEmpty(nodes)) {
+            nodes.forEach(node -> {
+                if (!Strings.isNullOrEmpty(node.getService().getAddress())) {
+                    Address address = new Address(node.getService().getAddress(), node.getService().getPort(), false);
+                    if (address.equals(selfAddress)) {
+                        address.setSelf(true);
                     }
-                });
-            }
-            ClusterHealthStatus healthStatus = OAPNodeChecker.isHealth(remoteInstances);
-            if (healthStatus.isHealth()) {
-                this.healthChecker.health();
-            } else {
-                this.healthChecker.unHealth(healthStatus.getReason());
-            }
-        } catch (Throwable e) {
-            healthChecker.unHealth(e);
-            throw new ServiceQueryException(e.getMessage());
+                    remoteInstances.add(new RemoteInstance(address));
+                }
+            });
         }
         return remoteInstances;
     }
@@ -96,36 +75,24 @@ public class ConsulCoordinator implements ClusterRegister, ClusterNodesQuery {
         if (needUsingInternalAddr()) {
             remoteInstance = new RemoteInstance(new Address(config.getInternalComHost(), config.getInternalComPort(), true));
         }
-        try {
-            initHealthChecker();
-            AgentClient agentClient = client.agentClient();
 
-            this.selfAddress = remoteInstance.getAddress();
+        AgentClient agentClient = client.agentClient();
 
-            Registration registration = ImmutableRegistration.builder()
-                    .id(remoteInstance.getAddress().toString())
-                    .name(serviceName)
-                    .address(remoteInstance.getAddress().getHost())
-                    .port(remoteInstance.getAddress().getPort())
-                    .check(Registration.RegCheck.grpc(remoteInstance.getAddress()
-                            .getHost() + ":" + remoteInstance
-                            .getAddress()
-                            .getPort(), 5)) // registers with a TTL of 5 seconds
-                    .build();
+        this.selfAddress = remoteInstance.getAddress();
+        TelemetryRelatedContext.INSTANCE.setId(selfAddress.toString());
 
-            agentClient.register(registration);
-            healthChecker.health();
-        } catch (Throwable e) {
-            healthChecker.unHealth(e);
-            throw new ServiceRegisterException(e.getMessage());
-        }
-    }
+        Registration registration = ImmutableRegistration.builder()
+                                                         .id(remoteInstance.getAddress().toString())
+                                                         .name(serviceName)
+                                                         .address(remoteInstance.getAddress().getHost())
+                                                         .port(remoteInstance.getAddress().getPort())
+                                                         .check(Registration.RegCheck.grpc(remoteInstance.getAddress()
+                                                                                                         .getHost() + ":" + remoteInstance
+                                                             .getAddress()
+                                                             .getPort(), 5)) // registers with a TTL of 5 seconds
+                                                         .build();
 
-    private void initHealthChecker() {
-        if (healthChecker == null) {
-            MetricsCreator metricCreator = manager.find(TelemetryModule.NAME).provider().getService(MetricsCreator.class);
-            healthChecker = metricCreator.createHealthCheckerGauge("cluster_consul", MetricsTag.EMPTY_KEY, MetricsTag.EMPTY_VALUE);
-        }
+        agentClient.register(registration);
     }
 
     private boolean needUsingInternalAddr() {

@@ -19,7 +19,6 @@
 package org.apache.skywalking.oap.server.core.analysis.metrics;
 
 import java.util.Comparator;
-import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.skywalking.oap.server.core.analysis.metrics.annotation.Arg;
@@ -35,7 +34,7 @@ import org.apache.skywalking.oap.server.core.storage.annotation.Column;
  * observations in a group of observations fall. For example, the 20th percentile is the value (or score) below which
  * 20% of the observations may be found.
  */
-public abstract class PxxMetrics extends Metrics implements IntValueHolder {
+public abstract class PxxMetrics extends GroupMetrics implements IntValueHolder {
 
     protected static final String DETAIL_GROUP = "detail_group";
     protected static final String VALUE = "value";
@@ -43,7 +42,7 @@ public abstract class PxxMetrics extends Metrics implements IntValueHolder {
 
     @Getter
     @Setter
-    @Column(columnName = VALUE, dataType = Column.ValueDataType.HISTOGRAM, function = Function.Avg)
+    @Column(columnName = VALUE, isValue = true, function = Function.Avg)
     private int value;
     @Getter
     @Setter
@@ -52,14 +51,14 @@ public abstract class PxxMetrics extends Metrics implements IntValueHolder {
     @Getter
     @Setter
     @Column(columnName = DETAIL_GROUP, storageOnly = true)
-    private DataTable detailGroup;
+    private IntKeyLongValueHashMap detailGroup;
 
     private final int percentileRank;
     private boolean isCalculated;
 
     public PxxMetrics(int percentileRank) {
         this.percentileRank = percentileRank;
-        detailGroup = new DataTable(30);
+        detailGroup = new IntKeyLongValueHashMap(30);
     }
 
     @Entrance
@@ -67,14 +66,14 @@ public abstract class PxxMetrics extends Metrics implements IntValueHolder {
         this.isCalculated = false;
         this.precision = precision;
 
-        String index = String.valueOf(value / precision);
-        Long element = detailGroup.get(index);
+        int index = value / precision;
+        IntKeyLongValue element = detailGroup.get(index);
         if (element == null) {
-            element = 1L;
+            element = new IntKeyLongValue(index, 1);
+            detailGroup.put(element.getKey(), element);
         } else {
-            element++;
+            element.addValue(1);
         }
-        detailGroup.put(index, element);
     }
 
     @Override
@@ -82,24 +81,27 @@ public abstract class PxxMetrics extends Metrics implements IntValueHolder {
         this.isCalculated = false;
 
         PxxMetrics pxxMetrics = (PxxMetrics) metrics;
-        this.detailGroup.append(pxxMetrics.detailGroup);
+        combine(pxxMetrics.getDetailGroup(), this.detailGroup);
     }
 
     @Override
     public final void calculate() {
 
         if (!isCalculated) {
-            long total = detailGroup.sumOfValues();
+            int total = detailGroup.values().stream().mapToInt(element -> (int) element.getValue()).sum();
             int roof = Math.round(total * percentileRank * 1.0f / 100);
 
-            long count = 0;
-            final List<String> sortedKeys = detailGroup.sortedKeys(Comparator.comparingInt(Integer::parseInt));
-
-            for (String index : sortedKeys) {
-                final Long value = detailGroup.get(index);
-                count += value;
+            int count = 0;
+            IntKeyLongValue[] sortedData = detailGroup.values().stream().sorted(new Comparator<IntKeyLongValue>() {
+                @Override
+                public int compare(IntKeyLongValue o1, IntKeyLongValue o2) {
+                    return o1.getKey() - o2.getKey();
+                }
+            }).toArray(IntKeyLongValue[]::new);
+            for (IntKeyLongValue element : sortedData) {
+                count += element.getValue();
                 if (count >= roof) {
-                    this.value = Integer.parseInt(index) * precision;
+                    value = element.getKey() * precision;
                     return;
                 }
             }

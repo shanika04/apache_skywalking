@@ -33,23 +33,19 @@ import org.apache.skywalking.oal.rt.grammar.OALParser;
 public class ScriptParser {
     private OALLexer lexer;
 
-    private String sourcePackage;
-
     private ScriptParser() {
 
     }
 
-    public static ScriptParser createFromFile(Reader scriptReader, String sourcePackage) throws IOException {
+    public static ScriptParser createFromFile(Reader scriptReader) throws IOException {
         ScriptParser parser = new ScriptParser();
         parser.lexer = new OALLexer(CharStreams.fromReader(scriptReader));
-        parser.sourcePackage = sourcePackage;
         return parser;
     }
 
-    public static ScriptParser createFromScriptText(String script, String sourcePackage) throws IOException {
+    public static ScriptParser createFromScriptText(String script) throws IOException {
         ScriptParser parser = new ScriptParser();
         parser.lexer = new OALLexer(CharStreams.fromString(script));
-        parser.sourcePackage = sourcePackage;
         return parser;
     }
 
@@ -63,7 +59,7 @@ public class ScriptParser {
         ParseTree tree = parser.root();
         ParseTreeWalker walker = new ParseTreeWalker();
 
-        walker.walk(new OALListener(scripts, sourcePackage), tree);
+        walker.walk(new OALListener(scripts), tree);
 
         return scripts;
     }

@@ -90,7 +90,8 @@ public class ClusterModuleConsulProvider extends ModuleProvider {
         } catch (ConnectStringParseException | ConsulException e) {
             throw new ModuleStartException(e.getMessage(), e);
         }
-        ConsulCoordinator coordinator = new ConsulCoordinator(getManager(), config, client);
+
+        ConsulCoordinator coordinator = new ConsulCoordinator(config, client);
         this.registerServiceImplementation(ClusterRegister.class, coordinator);
         this.registerServiceImplementation(ClusterNodesQuery.class, coordinator);
     }

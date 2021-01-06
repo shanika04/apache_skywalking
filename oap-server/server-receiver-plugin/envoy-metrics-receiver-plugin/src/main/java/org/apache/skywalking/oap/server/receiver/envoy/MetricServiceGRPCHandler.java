@@ -18,31 +18,23 @@
 
 package org.apache.skywalking.oap.server.receiver.envoy;
 
+import io.envoyproxy.envoy.api.v2.core.Node;
 import io.envoyproxy.envoy.service.metrics.v2.MetricsServiceGrpc;
-import io.envoyproxy.envoy.service.metrics.v3.StreamMetricsMessage;
-import io.envoyproxy.envoy.service.metrics.v3.StreamMetricsResponse;
+import io.envoyproxy.envoy.service.metrics.v2.StreamMetricsMessage;
+import io.envoyproxy.envoy.service.metrics.v2.StreamMetricsResponse;
 import io.grpc.stub.StreamObserver;
 import io.prometheus.client.Metrics;
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.skywalking.apm.util.StringUtil;
-import org.apache.skywalking.oap.meter.analyzer.prometheus.PrometheusMetricConverter;
 import org.apache.skywalking.oap.server.core.CoreModule;
 import org.apache.skywalking.oap.server.core.analysis.IDManager;
 import org.apache.skywalking.oap.server.core.analysis.TimeBucket;
-import org.apache.skywalking.oap.server.core.analysis.meter.MeterSystem;
+import org.apache.skywalking.oap.server.core.source.EnvoyInstanceMetric;
 import org.apache.skywalking.oap.server.core.analysis.NodeType;
 import org.apache.skywalking.oap.server.core.source.ServiceInstanceUpdate;
 import org.apache.skywalking.oap.server.core.source.SourceReceiver;
 import org.apache.skywalking.oap.server.library.module.ModuleManager;
-import org.apache.skywalking.oap.server.library.module.ModuleStartException;
-import org.apache.skywalking.oap.server.library.util.prometheus.metrics.Metric;
-import org.apache.skywalking.oap.server.receiver.envoy.als.ServiceMetaInfo;
-import org.apache.skywalking.oap.server.receiver.envoy.als.mx.ServiceMetaInfoAdapter;
-import org.apache.skywalking.oap.server.receiver.envoy.metrics.adapters.ProtoMetricFamily2MetricsAdapter;
 import org.apache.skywalking.oap.server.telemetry.TelemetryModule;
 import org.apache.skywalking.oap.server.telemetry.api.CounterMetrics;
 import org.apache.skywalking.oap.server.telemetry.api.HistogramMetrics;
@@ -52,11 +44,10 @@ import org.apache.skywalking.oap.server.telemetry.api.MetricsTag;
 @Slf4j
 public class MetricServiceGRPCHandler extends MetricsServiceGrpc.MetricsServiceImplBase {
     private final SourceReceiver sourceReceiver;
-    private final CounterMetrics counter;
-    private final HistogramMetrics histogram;
-    private final List<PrometheusMetricConverter> converters;
+    private CounterMetrics counter;
+    private HistogramMetrics histogram;
 
-    public MetricServiceGRPCHandler(final ModuleManager moduleManager, final EnvoyMetricReceiverConfig config) throws ModuleStartException {
+    public MetricServiceGRPCHandler(ModuleManager moduleManager) {
         sourceReceiver = moduleManager.find(CoreModule.NAME).provider().getService(SourceReceiver.class);
         MetricsCreator metricsCreator = moduleManager.find(TelemetryModule.NAME)
                                                      .provider()
@@ -69,23 +60,16 @@ public class MetricServiceGRPCHandler extends MetricsServiceGrpc.MetricsServiceI
             "envoy_metric_in_latency", "The process latency of service metrics receiver", MetricsTag.EMPTY_KEY,
             MetricsTag.EMPTY_VALUE
         );
-
-        final MeterSystem meterSystem = moduleManager.find(CoreModule.NAME).provider().getService(MeterSystem.class);
-
-        converters = config.rules()
-                           .stream()
-                           .map(rule -> new PrometheusMetricConverter(rule, meterSystem))
-                           .collect(Collectors.toList());
     }
 
     @Override
     public StreamObserver<StreamMetricsMessage> streamMetrics(StreamObserver<StreamMetricsResponse> responseObserver) {
         return new StreamObserver<StreamMetricsMessage>() {
             private volatile boolean isFirst = true;
-            private ServiceMetaInfo service;
+            private String serviceName = null;
+            private String serviceInstanceName = null;
 
             @Override
-            @SneakyThrows
             public void onNext(StreamMetricsMessage message) {
                 if (log.isDebugEnabled()) {
                     log.debug("Received msg {}", message);
@@ -93,41 +77,94 @@ public class MetricServiceGRPCHandler extends MetricsServiceGrpc.MetricsServiceI
 
                 if (isFirst) {
                     isFirst = false;
-                    service = new ServiceMetaInfoAdapter(message.getIdentifier().getNode().getMetadata());
+                    StreamMetricsMessage.Identifier identifier = message.getIdentifier();
+                    Node node = identifier.getNode();
+                    if (node != null) {
+                        String nodeId = node.getId();
+                        if (!StringUtil.isEmpty(nodeId)) {
+                            serviceInstanceName = nodeId;
+                        }
+                        String cluster = node.getCluster();
+                        if (!StringUtil.isEmpty(cluster)) {
+                            serviceName = cluster;
+                            if (serviceInstanceName == null) {
+                                serviceInstanceName = serviceName;
+                            }
+                        }
+                    }
+
+                    if (serviceName == null) {
+                        serviceName = serviceInstanceName;
+                    }
                 }
 
                 if (log.isDebugEnabled()) {
-                    log.debug("Envoy metrics reported from service[{}]", service);
+                    log.debug(
+                        "Envoy metrics reported from service[{}], service instance[{}]", serviceName,
+                        serviceInstanceName
+                    );
                 }
 
-                if (service != null && StringUtil.isNotEmpty(service.getServiceName()) && StringUtil.isNotEmpty(service.getServiceInstanceName())) {
+                if (StringUtil.isNotEmpty(serviceName) && StringUtil.isNotEmpty(serviceInstanceName)) {
                     List<Metrics.MetricFamily> list = message.getEnvoyMetricsList();
                     boolean needHeartbeatUpdate = true;
-
-                    for (final Metrics.MetricFamily metricFamily : list) {
+                    for (int i = 0; i < list.size(); i++) {
                         counter.inc();
 
-                        final String serviceId = IDManager.ServiceID.buildId(service.getServiceName(), NodeType.Normal);
+                        final String serviceId = IDManager.ServiceID.buildId(serviceName, NodeType.Normal);
+                        final String serviceInstanceId = IDManager.ServiceInstanceID.buildId(
+                            serviceId, serviceInstanceName);
 
-                        try (final HistogramMetrics.Timer ignored = histogram.createTimer()) {
-                            final ProtoMetricFamily2MetricsAdapter adapter = new ProtoMetricFamily2MetricsAdapter(metricFamily);
-                            final Stream<Metric> metrics = adapter.adapt().peek(it -> {
-                                it.getLabels().putIfAbsent("cluster", service.getServiceName());
-                                it.getLabels().putIfAbsent("instance", service.getServiceInstanceName());
-                            });
-                            converters.forEach(converter -> converter.toMeter(metrics));
+                        HistogramMetrics.Timer timer = histogram.createTimer();
+                        try {
+                            Metrics.MetricFamily metricFamily = list.get(i);
+                            double value = 0;
+                            long timestamp = 0;
+                            switch (metricFamily.getType()) {
+                                case GAUGE:
+                                    for (Metrics.Metric metrics : metricFamily.getMetricList()) {
+                                        timestamp = metrics.getTimestampMs();
+                                        value = metrics.getGauge().getValue();
 
-                            if (needHeartbeatUpdate && list.get(0).getMetricCount() > 0) {
-                                final long timestamp = adapter.adaptTimestamp(list.get(0).getMetric(0));
+                                        if (timestamp > 1000000000000000000L) {
+                                            /**
+                                             * Several versions of envoy in istio.deps send timestamp in nanoseconds,
+                                             * instead of milliseconds(protocol says).
+                                             *
+                                             * Sadly, but have to fix it forcedly.
+                                             *
+                                             * An example of timestamp is '1552303033488741055', clearly it is not in milliseconds.
+                                             *
+                                             * This should be removed in the future.
+                                             */
+                                            timestamp /= 1_000_000;
+                                        }
 
+                                        EnvoyInstanceMetric metricSource = new EnvoyInstanceMetric();
+                                        metricSource.setServiceId(serviceId);
+                                        metricSource.setServiceName(serviceName);
+                                        metricSource.setId(serviceInstanceId);
+                                        metricSource.setName(serviceInstanceName);
+                                        metricSource.setMetricName(metricFamily.getName());
+                                        metricSource.setValue(value);
+                                        metricSource.setTimeBucket(TimeBucket.getMinuteTimeBucket(timestamp));
+                                        sourceReceiver.receive(metricSource);
+                                    }
+                                    break;
+                                default:
+                                    continue;
+                            }
+                            if (needHeartbeatUpdate) {
                                 // Send heartbeat
                                 ServiceInstanceUpdate serviceInstanceUpdate = new ServiceInstanceUpdate();
-                                serviceInstanceUpdate.setName(service.getServiceInstanceName());
+                                serviceInstanceUpdate.setName(serviceInstanceName);
                                 serviceInstanceUpdate.setServiceId(serviceId);
                                 serviceInstanceUpdate.setTimeBucket(TimeBucket.getMinuteTimeBucket(timestamp));
                                 sourceReceiver.receive(serviceInstanceUpdate);
                                 needHeartbeatUpdate = false;
                             }
+                        } finally {
+                            timer.finish();
                         }
                     }
                 }

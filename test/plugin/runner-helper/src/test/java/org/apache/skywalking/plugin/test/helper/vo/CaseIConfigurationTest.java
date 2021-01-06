@@ -43,6 +43,7 @@ public class CaseIConfigurationTest {
         CaseConfiguration caseConfiguration = yaml.loadAs(configurationFile, CaseConfiguration.class);
         assertNotNull(caseConfiguration);
 
+        assertThat(caseConfiguration.getFramework(), is("solrj"));
         assertThat(caseConfiguration.getDependencies().size(), is(1));
     }
 }

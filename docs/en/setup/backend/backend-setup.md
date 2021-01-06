@@ -41,7 +41,7 @@ storage:
   # other configurations
 ```
 
-1. **`storage`** is the module.
+1. **`core`** is the module.
 1. **`selector`** selects one out of the all providers listed below, the unselected ones take no effect as if they were deleted.
 1. **`default`** is the default implementor of core module.
 1. `driver`, `url`, ... `metadataQueryMaxSize` are all setting items of the implementor.
@@ -68,9 +68,6 @@ service by some network(RPC) protocol, such as gRPC, HTTPRestful.
 The receivers have many different module names, you could
 read **Set receivers** document in the [link list](#advanced-feature-document-link-list).
 
-## Configuration Vocabulary
-All available configurations in `application.yml` could be found in [Configuration Vocabulary](configuration-vocabulary.md). 
-
 ## Advanced feature document link list
 After understand the setting file structure, you could choose your interesting feature document.
 We recommend you to read the feature documents in our following order.
@@ -83,11 +80,9 @@ Read this before you try to initial a new cluster.
 1. [Deploy in kubernetes](backend-k8s.md). Guide you to build and use SkyWalking image, and deploy in k8s.
 1. [Choose storage](backend-storage.md). As we know, in default quick start, backend is running with H2
 DB. But clearly, it doesn't fit the product env. In here, you could find what other choices do you have.
-Choose the ones you like, we are also welcome anyone to contribute new storage implementor.
+Choose the one you like, we are also welcome anyone to contribute new storage implementor,
 1. [Set receivers](backend-receivers.md). You could choose receivers by your requirements, most receivers
 are harmless, at least our default receivers are. You would set and active all receivers provided.
-1. [Open fetchers](backend-fetcher.md). You could open different fetchers to read metrics from the target applications.
-These ones works like receivers, but in pulling mode, typically like Prometheus.
 1. [Token authentication](backend-token-auth.md). You could add token authentication mechanisms to avoid `OAP` receiving untrusted data.  
 1. Do [trace sampling](trace-sampling.md) at backend. This sample keep the metrics accurate, only don't save some of traces
 in storage based on rate.
@@ -108,20 +103,10 @@ or 3rd party configuration management system.
 1. [Uninstrumented Gateways](uninstrumented-gateways.md). Configure gateways/proxies that are not supported by SkyWalking agent plugins,
 to reflect the delegation in topology graph.
 1. [Apdex threshold](apdex-threshold.md). Configure the thresholds for different services if Apdex calculation is activated in the OAL.
-1. [Service Grouping](service-auto-grouping.md). An automatic grouping mechanism for all services based on name.
-1. [Group Parameterized Endpoints](endpoint-grouping-rules.md). Configure the grouping rules for parameterized endpoints,
-to improve the meaning of the metrics.
-1. [Meter Analysis](backend-meter.md). Set up the backend analysis rules, when use [SkyWalking Meter System Toolkit](../service-agent/java-agent/README.md#advanced-features) 
-or meter plugins. 
-1. [Spring Sleuth Metrics Analysis](spring-sleuth-setup.md). Configure the agent and backend to receiver metrics from micrometer. 
 
 ## Telemetry for backend
 OAP backend cluster itself underlying is a distributed streaming process system. For helping the Ops team,
 we provide the telemetry for OAP backend itself. Follow [document](backend-telemetry.md) to use it.
-
-At the same time, we provide [Health Check](backend-health-check.md) to get a score for the health status.
-> 0 means healthy, more than 0 means unhealthy 
-> and less than 0 means oap doesn't startup.
 
 ## FAQs
 #### When and why do we need to set Timezone?
@@ -139,8 +124,8 @@ If you want to override it, please follow Java and OS documents to do so.
 SkyWalking provides browser UI, CLI and GraphQL ways to support extensions. But some users may have the idea to query data 
 directly from the storage. Such as in ElasticSearch case, Kibana is a great tool to do this.
 
-In default, due to reduce memory, network and storage space usages, SkyWalking saves based64-encoded id(s) only in the metrics entities. 
-But these tools usually don't support nested query, or don't work conveniently. In this special case,
+In default, due to reduce memory, network and storage space usages, SkyWalking saves id(s) only in the entity and metadata saved in the
+`*_inventory` entities only. But these tools usually don't support nested query, or don't work conveniently. In this special case,
 SkyWalking provide a config to add all necessary name column(s) into the final metrics entities with ID as a trade-off.
 
 Take a look at `core/default/activeExtraModelColumns` config in the `application.yaml`, and set it as `true` to open this feature.

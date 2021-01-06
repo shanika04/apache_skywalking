@@ -18,18 +18,14 @@
 
 package org.apache.skywalking.oap.server.core;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Paths;
 import org.apache.skywalking.oap.server.configuration.api.ConfigurationModule;
 import org.apache.skywalking.oap.server.configuration.api.DynamicConfigurationService;
 import org.apache.skywalking.oap.server.core.analysis.ApdexThresholdConfig;
 import org.apache.skywalking.oap.server.core.analysis.DisableRegister;
 import org.apache.skywalking.oap.server.core.analysis.StreamAnnotationListener;
-import org.apache.skywalking.oap.server.core.analysis.meter.MeterSystem;
 import org.apache.skywalking.oap.server.core.analysis.metrics.ApdexMetrics;
-import org.apache.skywalking.oap.server.core.analysis.worker.ManagementStreamProcessor;
 import org.apache.skywalking.oap.server.core.analysis.worker.MetricsStreamProcessor;
 import org.apache.skywalking.oap.server.core.analysis.worker.TopNStreamProcessor;
 import org.apache.skywalking.oap.server.core.annotation.AnnotationScan;
@@ -44,20 +40,14 @@ import org.apache.skywalking.oap.server.core.config.ComponentLibraryCatalogServi
 import org.apache.skywalking.oap.server.core.config.ConfigService;
 import org.apache.skywalking.oap.server.core.config.DownSamplingConfigService;
 import org.apache.skywalking.oap.server.core.config.IComponentLibraryCatalogService;
-import org.apache.skywalking.oap.server.core.config.NamingControl;
-import org.apache.skywalking.oap.server.core.config.group.EndpointNameGrouping;
-import org.apache.skywalking.oap.server.core.config.group.EndpointNameGroupingRuleWatcher;
-import org.apache.skywalking.oap.server.core.management.ui.template.UITemplateInitializer;
-import org.apache.skywalking.oap.server.core.management.ui.template.UITemplateManagementService;
-import org.apache.skywalking.oap.server.core.oal.rt.OALEngineLoaderService;
+import org.apache.skywalking.oap.server.core.oal.rt.OALEngine;
+import org.apache.skywalking.oap.server.core.oal.rt.OALEngineLoader;
 import org.apache.skywalking.oap.server.core.profile.ProfileTaskMutationService;
 import org.apache.skywalking.oap.server.core.query.AggregationQueryService;
 import org.apache.skywalking.oap.server.core.query.AlarmQueryService;
-import org.apache.skywalking.oap.server.core.query.BrowserLogQueryService;
 import org.apache.skywalking.oap.server.core.query.LogQueryService;
 import org.apache.skywalking.oap.server.core.query.MetadataQueryService;
-import org.apache.skywalking.oap.server.core.query.MetricsMetadataQueryService;
-import org.apache.skywalking.oap.server.core.query.MetricsQueryService;
+import org.apache.skywalking.oap.server.core.query.MetricQueryService;
 import org.apache.skywalking.oap.server.core.query.ProfileTaskQueryService;
 import org.apache.skywalking.oap.server.core.query.TopNRecordsQueryService;
 import org.apache.skywalking.oap.server.core.query.TopologyQueryService;
@@ -75,10 +65,9 @@ import org.apache.skywalking.oap.server.core.source.DefaultScopeDefine;
 import org.apache.skywalking.oap.server.core.source.SourceReceiver;
 import org.apache.skywalking.oap.server.core.source.SourceReceiverImpl;
 import org.apache.skywalking.oap.server.core.storage.PersistenceTimer;
-import org.apache.skywalking.oap.server.core.storage.StorageException;
 import org.apache.skywalking.oap.server.core.storage.model.IModelManager;
-import org.apache.skywalking.oap.server.core.storage.model.ModelCreator;
-import org.apache.skywalking.oap.server.core.storage.model.ModelManipulator;
+import org.apache.skywalking.oap.server.core.storage.model.IModelOverride;
+import org.apache.skywalking.oap.server.core.storage.model.INewModel;
 import org.apache.skywalking.oap.server.core.storage.model.StorageModels;
 import org.apache.skywalking.oap.server.core.storage.ttl.DataTTLKeeperTimer;
 import org.apache.skywalking.oap.server.core.worker.IWorkerInstanceGetter;
@@ -92,10 +81,7 @@ import org.apache.skywalking.oap.server.library.module.ServiceNotProvidedExcepti
 import org.apache.skywalking.oap.server.library.server.ServerException;
 import org.apache.skywalking.oap.server.library.server.grpc.GRPCServer;
 import org.apache.skywalking.oap.server.library.server.jetty.JettyServer;
-import org.apache.skywalking.oap.server.library.server.jetty.JettyServerConfig;
-import org.apache.skywalking.oap.server.library.util.ResourceUtils;
 import org.apache.skywalking.oap.server.telemetry.TelemetryModule;
-import org.apache.skywalking.oap.server.telemetry.api.TelemetryRelatedContext;
 
 /**
  * Core module provider includes the recommended and default implementations of {@link CoreModule#services()}. All
@@ -114,8 +100,8 @@ public class CoreModuleProvider extends ModuleProvider {
     private final AnnotationScan annotationScan;
     private final StorageModels storageModels;
     private final SourceReceiverImpl receiver;
+    private OALEngine oalEngine;
     private ApdexThresholdConfig apdexThresholdConfig;
-    private EndpointNameGroupingRuleWatcher endpointNameGroupingRuleWatcher;
 
     public CoreModuleProvider() {
         super();
@@ -145,18 +131,8 @@ public class CoreModuleProvider extends ModuleProvider {
         if (moduleConfig.isActiveExtraModelColumns()) {
             DefaultScopeDefine.activeExtraModelColumns();
         }
-        EndpointNameGrouping endpointNameGrouping = new EndpointNameGrouping();
-        this.registerServiceImplementation(NamingControl.class, new NamingControl(
-            moduleConfig.getServiceNameMaxLength(),
-            moduleConfig.getInstanceNameMaxLength(),
-            moduleConfig.getEndpointNameMaxLength(),
-            endpointNameGrouping
-        ));
-        try {
-            endpointNameGroupingRuleWatcher = new EndpointNameGroupingRuleWatcher(
-                this, endpointNameGrouping);
-        } catch (FileNotFoundException e) {
-            throw new ModuleStartException(e.getMessage(), e);
+        if (moduleConfig.getEndpointNameMaxLength() > 0) {
+            CoreModule.setEndpointNameMaxLength(moduleConfig.getEndpointNameMaxLength());
         }
 
         StreamAnnotationListener streamAnnotationListener = new StreamAnnotationListener(getManager());
@@ -165,25 +141,28 @@ public class CoreModuleProvider extends ModuleProvider {
         scopeScan.registerListener(new DefaultScopeDefine.Listener());
         try {
             scopeScan.scan();
+
+            oalEngine = OALEngineLoader.get();
+            oalEngine.setStreamListener(streamAnnotationListener);
+            oalEngine.setDispatcherListener(receiver.getDispatcherManager());
+            oalEngine.start(getClass().getClassLoader());
         } catch (Exception e) {
             throw new ModuleStartException(e.getMessage(), e);
         }
-
-        this.registerServiceImplementation(MeterSystem.class, new MeterSystem(getManager()));
 
         AnnotationScan oalDisable = new AnnotationScan();
         oalDisable.registerListener(DisableRegister.INSTANCE);
         oalDisable.registerListener(new DisableRegister.SingleDisableScanListener());
         try {
             oalDisable.scan();
-        } catch (IOException | StorageException e) {
+        } catch (IOException e) {
             throw new ModuleStartException(e.getMessage(), e);
         }
 
         if (moduleConfig.isGRPCSslEnabled()) {
             grpcServer = new GRPCServer(moduleConfig.getGRPCHost(), moduleConfig.getGRPCPort(),
-                                        moduleConfig.getGRPCSslCertChainPath(),
-                                        moduleConfig.getGRPCSslKeyPath()
+                                        Paths.get(moduleConfig.getGRPCSslCertChainPath()).toFile(),
+                                        Paths.get(moduleConfig.getGRPCSslKeyPath()).toFile()
             );
         } else {
             grpcServer = new GRPCServer(moduleConfig.getGRPCHost(), moduleConfig.getGRPCPort());
@@ -202,19 +181,9 @@ public class CoreModuleProvider extends ModuleProvider {
         }
         grpcServer.initialize();
 
-        JettyServerConfig jettyServerConfig = JettyServerConfig.builder()
-                                                               .host(moduleConfig.getRestHost())
-                                                               .port(moduleConfig.getRestPort())
-                                                               .contextPath(moduleConfig.getRestContextPath())
-                                                               .jettyIdleTimeOut(moduleConfig.getRestIdleTimeOut())
-                                                               .jettyAcceptorPriorityDelta(
-                                                                   moduleConfig.getRestAcceptorPriorityDelta())
-                                                               .jettyMinThreads(moduleConfig.getRestMinThreads())
-                                                               .jettyMaxThreads(moduleConfig.getRestMaxThreads())
-                                                               .jettyAcceptQueueSize(
-                                                                   moduleConfig.getRestAcceptQueueSize())
-                                                               .build();
-        jettyServer = new JettyServer(jettyServerConfig);
+        jettyServer = new JettyServer(
+            moduleConfig.getRestHost(), moduleConfig.getRestPort(), moduleConfig.getRestContextPath(), moduleConfig
+            .getJettySelectors());
         jettyServer.initialize();
 
         this.registerServiceImplementation(ConfigService.class, new ConfigService(moduleConfig));
@@ -233,18 +202,16 @@ public class CoreModuleProvider extends ModuleProvider {
         this.registerServiceImplementation(IWorkerInstanceSetter.class, instancesService);
 
         this.registerServiceImplementation(RemoteSenderService.class, new RemoteSenderService(getManager()));
-        this.registerServiceImplementation(ModelCreator.class, storageModels);
+        this.registerServiceImplementation(INewModel.class, storageModels);
         this.registerServiceImplementation(IModelManager.class, storageModels);
-        this.registerServiceImplementation(ModelManipulator.class, storageModels);
+        this.registerServiceImplementation(IModelOverride.class, storageModels);
 
         this.registerServiceImplementation(
             NetworkAddressAliasCache.class, new NetworkAddressAliasCache(moduleConfig));
 
         this.registerServiceImplementation(TopologyQueryService.class, new TopologyQueryService(getManager()));
-        this.registerServiceImplementation(MetricsMetadataQueryService.class, new MetricsMetadataQueryService());
-        this.registerServiceImplementation(MetricsQueryService.class, new MetricsQueryService(getManager()));
+        this.registerServiceImplementation(MetricQueryService.class, new MetricQueryService(getManager()));
         this.registerServiceImplementation(TraceQueryService.class, new TraceQueryService(getManager()));
-        this.registerServiceImplementation(BrowserLogQueryService.class, new BrowserLogQueryService(getManager()));
         this.registerServiceImplementation(LogQueryService.class, new LogQueryService(getManager()));
         this.registerServiceImplementation(MetadataQueryService.class, new MetadataQueryService(getManager()));
         this.registerServiceImplementation(AggregationQueryService.class, new AggregationQueryService(getManager()));
@@ -260,23 +227,17 @@ public class CoreModuleProvider extends ModuleProvider {
 
         this.registerServiceImplementation(CommandService.class, new CommandService(getManager()));
 
-        // add oal engine loader service implementations
-        this.registerServiceImplementation(OALEngineLoaderService.class, new OALEngineLoaderService(getManager()));
-
         annotationScan.registerListener(streamAnnotationListener);
 
         if (moduleConfig.isGRPCSslEnabled()) {
             this.remoteClientManager = new RemoteClientManager(getManager(), moduleConfig.getRemoteTimeout(),
-                                                               moduleConfig.getGRPCSslTrustedCAPath()
+                                                               Paths.get(moduleConfig.getGRPCSslTrustedCAPath())
+                                                                    .toFile()
             );
         } else {
             this.remoteClientManager = new RemoteClientManager(getManager(), moduleConfig.getRemoteTimeout());
         }
         this.registerServiceImplementation(RemoteClientManager.class, remoteClientManager);
-
-        // Management
-        this.registerServiceImplementation(
-            UITemplateManagementService.class, new UITemplateManagementService(getManager()));
 
         MetricsStreamProcessor.getInstance().setEnableDatabaseSession(moduleConfig.isEnableDatabaseSession());
         TopNStreamProcessor.getInstance().setTopNWorkerReportCycle(moduleConfig.getTopNReportPeriod());
@@ -286,6 +247,7 @@ public class CoreModuleProvider extends ModuleProvider {
 
     @Override
     public void start() throws ModuleStartException {
+
         grpcServer.addHandler(new RemoteServiceHandler(getManager()));
         grpcServer.addHandler(new HealthCheckServiceHandler());
         remoteClientManager.start();
@@ -293,19 +255,20 @@ public class CoreModuleProvider extends ModuleProvider {
         try {
             receiver.scan();
             annotationScan.scan();
-        } catch (IOException | IllegalAccessException | InstantiationException | StorageException e) {
+
+            oalEngine.notifyAllListeners();
+        } catch (IOException | IllegalAccessException | InstantiationException e) {
             throw new ModuleStartException(e.getMessage(), e);
         }
 
-        Address gRPCServerInstanceAddress = new Address(moduleConfig.getGRPCHost(), moduleConfig.getGRPCPort(), true);
-        TelemetryRelatedContext.INSTANCE.setId(gRPCServerInstanceAddress.toString());
         if (CoreModuleConfig.Role.Mixed.name()
                                        .equalsIgnoreCase(
                                            moduleConfig.getRole())
             || CoreModuleConfig.Role.Aggregator.name()
                                                .equalsIgnoreCase(
                                                    moduleConfig.getRole())) {
-            RemoteInstance gRPCServerInstance = new RemoteInstance(gRPCServerInstanceAddress);
+            RemoteInstance gRPCServerInstance = new RemoteInstance(
+                new Address(moduleConfig.getGRPCHost(), moduleConfig.getGRPCPort(), true));
             this.getManager()
                 .find(ClusterModule.NAME)
                 .provider()
@@ -318,7 +281,6 @@ public class CoreModuleProvider extends ModuleProvider {
                                                                               .getService(
                                                                                   DynamicConfigurationService.class);
         dynamicConfigurationService.registerConfigChangeWatcher(apdexThresholdConfig);
-        dynamicConfigurationService.registerConfigChangeWatcher(endpointNameGroupingRuleWatcher);
     }
 
     @Override
@@ -337,20 +299,6 @@ public class CoreModuleProvider extends ModuleProvider {
         }
 
         CacheUpdateTimer.INSTANCE.start(getManager(), moduleConfig.getMetricsDataTTL());
-
-        try {
-            final File[] templateFiles = ResourceUtils.getPathFiles("ui-initialized-templates");
-            for (final File templateFile : templateFiles) {
-                new UITemplateInitializer(new FileInputStream(templateFile))
-                    .read()
-                    .forEach(uiTemplate -> {
-                        ManagementStreamProcessor.getInstance().in(uiTemplate);
-                    });
-            }
-
-        } catch (FileNotFoundException e) {
-            throw new ModuleStartException(e.getMessage(), e);
-        }
     }
 
     @Override

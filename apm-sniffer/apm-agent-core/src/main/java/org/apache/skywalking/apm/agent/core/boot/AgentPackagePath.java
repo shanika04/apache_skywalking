@@ -31,7 +31,7 @@ import org.apache.skywalking.apm.agent.core.logging.api.LogManager;
  * mechanism fails, the agent will exit directly.
  */
 public class AgentPackagePath {
-    private static final ILog LOGGER = LogManager.getLogger(AgentPackagePath.class);
+    private static final ILog logger = LogManager.getLogger(AgentPackagePath.class);
 
     private static File AGENT_PACKAGE_PATH;
 
@@ -53,7 +53,7 @@ public class AgentPackagePath {
         if (resource != null) {
             String urlString = resource.toString();
 
-            LOGGER.debug("The beacon class location is {}.", urlString);
+            logger.debug("The beacon class location is {}.", urlString);
 
             int insidePathIndex = urlString.indexOf('!');
             boolean isInJar = insidePathIndex > -1;
@@ -64,7 +64,7 @@ public class AgentPackagePath {
                 try {
                     agentJarFile = new File(new URL(urlString).toURI());
                 } catch (MalformedURLException | URISyntaxException e) {
-                    LOGGER.error(e, "Can not locate agent jar file by url:" + urlString);
+                    logger.error(e, "Can not locate agent jar file by url:" + urlString);
                 }
                 if (agentJarFile.exists()) {
                     return agentJarFile.getParentFile();
@@ -77,7 +77,7 @@ public class AgentPackagePath {
             }
         }
 
-        LOGGER.error("Can not locate agent jar file.");
+        logger.error("Can not locate agent jar file.");
         throw new AgentPackageNotFoundException("Can not locate agent jar file.");
     }
 

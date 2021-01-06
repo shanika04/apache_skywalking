@@ -31,7 +31,7 @@ import java.lang.reflect.Method;
 public class RequestMappingMethodInterceptor extends AbstractMethodInterceptor {
     @Override
     public String getRequestURL(Method method) {
-        return ParsePathUtil.recursiveParseMethodAnnotation(method, m -> {
+        return ParsePathUtil.recursiveParseMethodAnnotaion(method, m -> {
             String requestURL = null;
             RequestMapping methodRequestMapping = AnnotationUtils.getAnnotation(m, RequestMapping.class);
             if (methodRequestMapping != null) {
@@ -47,7 +47,7 @@ public class RequestMappingMethodInterceptor extends AbstractMethodInterceptor {
 
     @Override
     public String getAcceptedMethodTypes(Method method) {
-        return ParsePathUtil.recursiveParseMethodAnnotation(method, m -> {
+        return ParsePathUtil.recursiveParseMethodAnnotaion(method, m -> {
             RequestMapping methodRequestMapping = AnnotationUtils.getAnnotation(m, RequestMapping.class);
             if (methodRequestMapping == null || methodRequestMapping.method().length == 0) {
                 return null;

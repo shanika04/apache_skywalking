@@ -50,6 +50,7 @@ public class ClusterConnectInterceptor implements InstanceMethodsAroundIntercept
         Class<?>[] argumentsTypes, Throwable t) {
         if (ContextManager.isActive()) {
             AbstractSpan span = ContextManager.activeSpan();
+            span.errorOccurred();
             span.log(t);
         }
     }

@@ -22,13 +22,7 @@ import org.apache.skywalking.apm.testcase.feign.entity.User;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Map;
@@ -37,17 +31,17 @@ import java.util.concurrent.ConcurrentHashMap;
 @RestController
 public class BackController {
 
-    private static final Map<Integer, User> USERS = new ConcurrentHashMap<>();
+    private static final Map<Integer, User> users = new ConcurrentHashMap<>();
 
     @GetMapping("/get/{id}")
     public ResponseEntity<User> getUser(@PathVariable("id") int id) {
-        User currentUser = USERS.get(id);
+        User currentUser = users.get(id);
         return ResponseEntity.ok(currentUser);
     }
 
     @PostMapping(value = "/create/")
     public ResponseEntity<Void> createUser(@RequestBody User user, UriComponentsBuilder ucBuilder) {
-        USERS.put(user.getId(), user);
+        users.put(user.getId(), user);
         HttpHeaders headers = new HttpHeaders();
         headers.setLocation(ucBuilder.path("/user/{id}").buildAndExpand(user.getId()).toUri());
         return new ResponseEntity<>(headers, HttpStatus.CREATED);
@@ -61,11 +55,11 @@ public class BackController {
 
     @DeleteMapping(value = "/delete/{id}")
     public ResponseEntity<User> deleteUser(@PathVariable("id") int id) {
-        User currentUser = USERS.get(id);
+        User currentUser = users.get(id);
         if (currentUser == null) {
             return ResponseEntity.noContent().build();
         }
-        USERS.remove(id);
+        users.remove(id);
         return ResponseEntity.noContent().build();
     }
 }

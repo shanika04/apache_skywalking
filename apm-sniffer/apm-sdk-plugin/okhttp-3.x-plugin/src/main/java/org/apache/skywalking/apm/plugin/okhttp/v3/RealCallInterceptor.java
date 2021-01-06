@@ -20,6 +20,7 @@ package org.apache.skywalking.apm.plugin.okhttp.v3;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import okhttp3.Headers;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
@@ -69,12 +70,16 @@ public class RealCallInterceptor implements InstanceMethodsAroundInterceptor, In
         SpanLayer.asHttp(span);
 
         Field headersField = Request.class.getDeclaredField("headers");
+        Field modifiersField = Field.class.getDeclaredField("modifiers");
+        modifiersField.setAccessible(true);
+        modifiersField.setInt(headersField, headersField.getModifiers() & ~Modifier.FINAL);
+
         headersField.setAccessible(true);
         Headers.Builder headerBuilder = request.headers().newBuilder();
         CarrierItem next = contextCarrier.items();
         while (next.hasNext()) {
             next = next.next();
-            headerBuilder.set(next.getHeadKey(), next.getHeadValue());
+            headerBuilder.add(next.getHeadKey(), next.getHeadValue());
         }
         headersField.set(request, headerBuilder.build());
     }
@@ -107,6 +112,7 @@ public class RealCallInterceptor implements InstanceMethodsAroundInterceptor, In
     public void handleMethodException(EnhancedInstance objInst, Method method, Object[] allArguments,
         Class<?>[] argumentsTypes, Throwable t) {
         AbstractSpan abstractSpan = ContextManager.activeSpan();
+        abstractSpan.errorOccurred();
         abstractSpan.log(t);
     }
 }

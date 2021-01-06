@@ -27,7 +27,7 @@ import org.apache.skywalking.oap.server.library.module.ModuleConfig;
  * The config of {@code query.graphql}.
  */
 @Getter(AccessLevel.PACKAGE)
-@Setter
+@Setter(AccessLevel.PUBLIC)
 public class GraphQLQueryConfig extends ModuleConfig {
     private String path;
 }

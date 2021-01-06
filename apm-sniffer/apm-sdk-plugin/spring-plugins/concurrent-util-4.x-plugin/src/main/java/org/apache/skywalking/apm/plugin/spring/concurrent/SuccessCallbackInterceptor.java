@@ -59,6 +59,6 @@ public class SuccessCallbackInterceptor implements InstanceMethodsAroundIntercep
         if (cacheValues == null) {
             return;
         }
-        ContextManager.activeSpan().log(t);
+        ContextManager.activeSpan().errorOccurred().log(t);
     }
 }

@@ -33,14 +33,10 @@ segmentItems:
       tags:
       - {key: url, value: 'http://localhost:8080/httpclient-3.x-scenario/case/context-propagate'}
       - {key: http.method, value: GET}
-      - key: http.params
-        value: |-
-          q1=[v1]
-          chinese=[中文]
       refs:
       - {parentEndpoint: /httpclient-3.x-scenario/case/httpclient, networkAddress: 'localhost:8080',
         refType: CrossProcess, parentSpanId: 1, parentTraceSegmentId: not null, parentServiceInstance: not
-          null, parentService: httpclient-3.x-scenario, traceId: not null}
+          null, parentService: not null, traceId: not null}
       skipAnalysis: 'false'
   - segmentId: not null
     spans:
@@ -56,9 +52,8 @@ segmentItems:
       spanType: Exit
       peer: localhost:8080
       tags:
-      - {key: url, value: 'http://localhost:8080/httpclient-3.x-scenario/case/context-propagate?q1=v1&chinese=%e4%b8%ad%e6%96%87'}
+      - {key: url, value: 'http://localhost:8080/httpclient-3.x-scenario/case/context-propagate'}
       - {key: http.method, value: GET}
-      - {key: http.params, value: q1=v1&chinese=%e4%b8%ad%e6%96%87}
       skipAnalysis: 'false'
     - operationName: /httpclient-3.x-scenario/case/httpclient
       operationId: 0

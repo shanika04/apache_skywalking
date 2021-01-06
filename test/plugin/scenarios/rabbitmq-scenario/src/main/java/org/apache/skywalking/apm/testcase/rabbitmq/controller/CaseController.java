@@ -39,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
 @PropertySource("classpath:application.properties")
 public class CaseController {
 
-    private static final Logger LOGGER = LogManager.getLogger(CaseController.class);
+    private Logger logger = LogManager.getLogger(CaseController.class);
 
     private static final String USERNAME = "admin";
 
@@ -62,7 +62,7 @@ public class CaseController {
 
         try {
             ConnectionFactory factory = new ConnectionFactory();
-            LOGGER.info("Using brokerUrl = " + brokerUrl);
+            logger.info("Using brokerUrl = " + brokerUrl);
             factory.setHost(brokerUrl);
             factory.setPort(PORT);
             factory.setUsername(USERNAME);
@@ -73,23 +73,23 @@ public class CaseController {
             channel = connection.createChannel();
             channel.queueDeclare(QUEUE_NAME, false, false, false, null);
             AMQP.BasicProperties.Builder propsBuilder = new AMQP.BasicProperties.Builder();
-            LOGGER.info("Message being published -------------->" + MESSAGE);
+            logger.info("Message being published -------------->" + MESSAGE);
             channel.basicPublish("", QUEUE_NAME, propsBuilder.build(), MESSAGE.getBytes(StandardCharsets.UTF_8));
-            LOGGER.info("Message has been published-------------->" + MESSAGE);
+            logger.info("Message has been published-------------->" + MESSAGE);
 
             final CountDownLatch waitForConsume = new CountDownLatch(1);
             DeliverCallback deliverCallback = (consumerTag, delivery) -> {
                 String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
-                LOGGER.info("Message received-------------->" + message);
+                logger.info("Message received-------------->" + message);
                 waitForConsume.countDown();
             };
             channel.basicConsume(QUEUE_NAME, true, deliverCallback, consumerTag -> {
             });
             waitForConsume.await(5000L, TimeUnit.MILLISECONDS);
-            LOGGER.info("Message Consumed-------------->");
+            logger.info("Message Consumed-------------->");
 
         } catch (Exception ex) {
-            LOGGER.error(ex.toString());
+            logger.error(ex.toString());
         } finally {
             if (channel != null) {
                 try {
@@ -116,7 +116,7 @@ public class CaseController {
 
         try {
             ConnectionFactory factory = new ConnectionFactory();
-            LOGGER.info("Using brokerUrl = " + brokerUrl);
+            logger.info("Using brokerUrl = " + brokerUrl);
             factory.setHost(brokerUrl);
             factory.setPort(PORT);
             factory.setUsername(USERNAME);
@@ -126,9 +126,9 @@ public class CaseController {
 
             channel = connection.createChannel();
             channel.queueDeclare(QUEUE_NAME, false, false, false, null);
-            LOGGER.info("Completed Health Check. Able to connect to RabbitMQ and create queue-------------->");
+            logger.info("Completed Health Check. Able to connect to RabbitMQ and create queue-------------->");
         } catch (Exception ex) {
-            LOGGER.error(ex.toString());
+            logger.error(ex.toString());
             throw ex;
         } finally {
             if (channel != null) {

@@ -32,18 +32,15 @@ import org.apache.skywalking.apm.testcase.shardingsphere.service.api.repository.
 public final class JDBCOrderItemRepositoryImpl implements OrderItemRepository {
 
     private final DataSource dataSource;
-    
-    private final Connection connection;
 
-    public JDBCOrderItemRepositoryImpl(final DataSource dataSource) throws SQLException {
+    public JDBCOrderItemRepositoryImpl(final DataSource dataSource) {
         this.dataSource = dataSource;
-        this.connection = dataSource.getConnection();
     }
 
     @Override
     public void createTableIfNotExists() {
         String sql = "CREATE TABLE IF NOT EXISTS t_order_item " + "(order_item_id BIGINT NOT NULL AUTO_INCREMENT, order_id BIGINT NOT NULL, user_id INT NOT NULL, status VARCHAR(50), PRIMARY KEY (order_item_id))";
-        try (Statement statement = connection.createStatement()) {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.executeUpdate(sql);
         } catch (final SQLException ignored) {
         }
@@ -52,7 +49,7 @@ public final class JDBCOrderItemRepositoryImpl implements OrderItemRepository {
     @Override
     public void dropTable() {
         String sql = "DROP TABLE t_order_item";
-        try (Statement statement = connection.createStatement()) {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.executeUpdate(sql);
         } catch (final SQLException ignored) {
         }
@@ -61,7 +58,7 @@ public final class JDBCOrderItemRepositoryImpl implements OrderItemRepository {
     @Override
     public void truncateTable() {
         String sql = "TRUNCATE TABLE t_order_item";
-        try (Statement statement = connection.createStatement()) {
+        try (Connection connection = dataSource.getConnection(); Statement statement = connection.createStatement()) {
             statement.executeUpdate(sql);
         } catch (final SQLException ignored) {
         }
@@ -70,7 +67,7 @@ public final class JDBCOrderItemRepositoryImpl implements OrderItemRepository {
     @Override
     public Long insert(final OrderItem orderItem) {
         String sql = "INSERT INTO t_order_item (order_id, user_id, status) VALUES (?, ?, ?)";
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        try (Connection connection = dataSource.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             preparedStatement.setLong(1, orderItem.getOrderId());
             preparedStatement.setInt(2, orderItem.getUserId());
             preparedStatement.setString(3, orderItem.getStatus());
@@ -88,7 +85,7 @@ public final class JDBCOrderItemRepositoryImpl implements OrderItemRepository {
     @Override
     public void delete(final Long orderItemId) {
         String sql = "DELETE FROM t_order_item WHERE order_item_id=?";
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+        try (Connection connection = dataSource.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
             preparedStatement.setLong(1, orderItemId);
             preparedStatement.executeUpdate(sql);
         } catch (final SQLException ignored) {
@@ -109,7 +106,7 @@ public final class JDBCOrderItemRepositoryImpl implements OrderItemRepository {
 
     private List<OrderItem> getOrderItems(final String sql) {
         List<OrderItem> result = new LinkedList<>();
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql); ResultSet resultSet = preparedStatement
+        try (Connection connection = dataSource.getConnection(); PreparedStatement preparedStatement = connection.prepareStatement(sql); ResultSet resultSet = preparedStatement
             .executeQuery()) {
             while (resultSet.next()) {
                 OrderItem orderItem = new OrderItem();

@@ -20,9 +20,7 @@ package org.apache.skywalking.apm.plugin.lettuce.v5;
 
 import org.apache.skywalking.apm.agent.core.context.ContextManager;
 import org.apache.skywalking.apm.agent.core.context.ContextSnapshot;
-import org.apache.skywalking.apm.agent.core.context.tag.Tags;
 import org.apache.skywalking.apm.agent.core.context.trace.AbstractSpan;
-import org.apache.skywalking.apm.agent.core.context.trace.SpanLayer;
 import org.apache.skywalking.apm.network.trace.component.ComponentsDefine;
 
 import java.util.function.Consumer;
@@ -43,13 +41,11 @@ public class SWConsumer<T> implements Consumer<T> {
     public void accept(T t) {
         AbstractSpan span = ContextManager.createLocalSpan(operationName + "/accept");
         span.setComponent(ComponentsDefine.LETTUCE);
-        Tags.DB_TYPE.set(span, "Redis");
-        SpanLayer.asCache(span);
         try {
             ContextManager.continued(snapshot);
             consumer.accept(t);
         } catch (Throwable th) {
-            ContextManager.activeSpan().log(th);
+            ContextManager.activeSpan().errorOccurred().log(th);
         } finally {
             ContextManager.stopSpan();
         }

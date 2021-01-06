@@ -37,7 +37,8 @@ public class FailureCallbackInterceptor implements InstanceMethodsAroundIntercep
         }
 
         AbstractSpan span = ContextManager.createLocalSpan("future/failureCallback:" + cacheValues.getOperationName());
-        span.log((Throwable) allArguments[0])
+        span.errorOccurred()
+            .log((Throwable) allArguments[0])
             .setComponent(cacheValues.getComponent())
             .setLayer(cacheValues.getSpanLayer());
         ContextManager.continued(cacheValues.getContextSnapshot());
@@ -61,6 +62,6 @@ public class FailureCallbackInterceptor implements InstanceMethodsAroundIntercep
         if (cacheValues == null) {
             return;
         }
-        ContextManager.activeSpan().log(t);
+        ContextManager.activeSpan().errorOccurred().log(t);
     }
 }

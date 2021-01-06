@@ -18,6 +18,7 @@ type: jvm
 entryService: http://localhost:8080/mysql-scenario/case/mysql-scenario
 healthCheck: http://localhost:8080/mysql-scenario/case/healthCheck
 startScript: ./bin/startup.sh
+framework: mysql-scenario
 environment:
 depends_on:
   - mysql-server

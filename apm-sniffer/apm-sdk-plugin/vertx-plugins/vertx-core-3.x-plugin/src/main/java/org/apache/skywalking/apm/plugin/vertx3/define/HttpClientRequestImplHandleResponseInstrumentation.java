@@ -31,9 +31,7 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 /**
  * {@link HttpClientRequestImplHandleResponseInstrumentation} enhance the <code>handleResponse</code> method in
  * <code>io.vertx.core.http.impl.HttpClientRequestImpl</code> class by
- * <code>HttpClientRequestImplHandleResponseInterceptor</code> class.
- *
- * Ver. 3.0.0 - 3.5.4
+ * <code>HttpClientRequestImplHandleResponseInterceptor</code> class
  */
 public class HttpClientRequestImplHandleResponseInstrumentation extends ClassInstanceMethodsEnhancePluginDefine {
 

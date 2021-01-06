@@ -19,8 +19,6 @@
 package org.apache.skywalking.oap.server.library.module;
 
 public class ModuleAProvider extends ModuleProvider {
-    private ModuleAProviderConfig config = new ModuleAProviderConfig();
-
     @Override
     public String name() {
         return "P-A";
@@ -28,7 +26,7 @@ public class ModuleAProvider extends ModuleProvider {
 
     @Override
     public ModuleConfig createConfigBeanIfAbsent() {
-        return config;
+        return null;
     }
 
     @Override

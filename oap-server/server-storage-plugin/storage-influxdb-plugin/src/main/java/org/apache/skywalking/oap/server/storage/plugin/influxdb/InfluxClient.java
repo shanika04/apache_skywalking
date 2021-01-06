@@ -18,14 +18,15 @@
 
 package org.apache.skywalking.oap.server.storage.plugin.influxdb;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
+import org.apache.skywalking.oap.server.core.analysis.DownSampling;
 import org.apache.skywalking.oap.server.core.analysis.TimeBucket;
 import org.apache.skywalking.oap.server.library.client.Client;
-import org.apache.skywalking.oap.server.library.client.healthcheck.DelegatedHealthChecker;
-import org.apache.skywalking.oap.server.library.client.healthcheck.HealthCheckable;
 import org.apache.skywalking.oap.server.library.util.CollectionUtils;
-import org.apache.skywalking.oap.server.library.util.HealthChecker;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.BatchPoints;
@@ -34,25 +35,24 @@ import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 import org.influxdb.querybuilder.time.TimeInterval;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Objects;
-import java.util.concurrent.TimeUnit;
-
 import static org.influxdb.querybuilder.BuiltQuery.QueryBuilder.ti;
 
 /**
  * InfluxDB connection maintainer, provides base data write/query API.
  */
 @Slf4j
-public class InfluxClient implements Client, HealthCheckable {
-    private final DelegatedHealthChecker healthChecker = new DelegatedHealthChecker();
-    private final InfluxStorageConfig config;
+public class InfluxClient implements Client {
+    private InfluxStorageConfig config;
     private InfluxDB influx;
+
     /**
      * A constant, the name of time field in Time-series database.
      */
     public static final String TIME = "time";
+    /**
+     * A constant, the name of tag of time_bucket.
+     */
+    public static final String TAG_TIME_BUCKET = "_time_bucket";
 
     private final String database;
 
@@ -67,26 +67,15 @@ public class InfluxClient implements Client, HealthCheckable {
 
     @Override
     public void connect() {
-        try {
-            InfluxDB.ResponseFormat responseFormat = InfluxDB.ResponseFormat.valueOf(config.getConnectionResponseFormat());
-            influx = InfluxDBFactory.connect(config.getUrl(), config.getUser(), config.getPassword(),
-                    new OkHttpClient.Builder().readTimeout(3, TimeUnit.MINUTES)
-                            .writeTimeout(3, TimeUnit.MINUTES),
-                    responseFormat
-            );
-            influx.query(new Query("CREATE DATABASE " + database));
-            influx.enableGzip();
+        influx = InfluxDBFactory.connect(config.getUrl(), config.getUser(), config.getPassword(),
+                                         new OkHttpClient.Builder().readTimeout(3, TimeUnit.MINUTES)
+                                                                   .writeTimeout(3, TimeUnit.MINUTES),
+                                         InfluxDB.ResponseFormat.MSGPACK
+        );
+        influx.query(new Query("CREATE DATABASE " + database));
 
-            if (config.isBatchEnabled()) {
-                influx.enableBatch(config.getActions(), config.getDuration(), TimeUnit.MILLISECONDS);
-            }
-
-            influx.setDatabase(database);
-            healthChecker.health();
-        } catch (Throwable e) {
-            healthChecker.unHealth(e);
-            throw e;
-        }
+        influx.enableBatch(config.getActions(), config.getDuration(), TimeUnit.MILLISECONDS);
+        influx.setDatabase(database);
     }
 
     /**
@@ -108,15 +97,14 @@ public class InfluxClient implements Client, HealthCheckable {
         if (log.isDebugEnabled()) {
             log.debug("SQL Statement: {}", query.getCommand());
         }
+
         try {
-            QueryResult result = getInflux().query(new Query(query.getCommand()));
+            QueryResult result = getInflux().query(query);
             if (result.hasError()) {
                 throw new IOException(result.getError());
             }
-            healthChecker.health();
             return result.getResults();
-        } catch (Throwable e) {
-            healthChecker.unHealth(e);
+        } catch (Exception e) {
             throw new IOException(e.getMessage() + System.lineSeparator() + "SQL Statement: " + query.getCommand(), e);
         }
     }
@@ -149,22 +137,6 @@ public class InfluxClient implements Client, HealthCheckable {
     }
 
     /**
-     * Execute a query against InfluxDB with a `select count(*)` statement and return the count only.
-     *
-     * @throws IOException if there is an error on the InfluxDB server or communication error
-     */
-    public int getCounter(Query query) throws IOException {
-        QueryResult.Series series = queryForSingleSeries(query);
-        if (log.isDebugEnabled()) {
-            log.debug("SQL: {} result: {}", query.getCommand(), series);
-        }
-        if (Objects.isNull(series)) {
-            return 0;
-        }
-        return ((Number) series.getValues().get(0).get(1)).intValue();
-    }
-
-    /**
      * Data management, to drop a time-series by measurement and time-series name specified. If an exception isn't
      * thrown, it means execution success. Notice, drop series don't support to drop series by range
      *
@@ -172,7 +144,11 @@ public class InfluxClient implements Client, HealthCheckable {
      */
     public void dropSeries(String measurement, long timeBucket) throws IOException {
         Query query = new Query("DROP SERIES FROM " + measurement + " WHERE time_bucket='" + timeBucket + "'");
-        this.query(query);
+        QueryResult result = getInflux().query(query);
+
+        if (result.hasError()) {
+            throw new IOException("Statement: " + query.getCommand() + ", ErrorMsg: " + result.getError());
+        }
     }
 
     public void deleteByQuery(String measurement, long timestamp) throws IOException {
@@ -184,55 +160,32 @@ public class InfluxClient implements Client, HealthCheckable {
      * wait for buffer flushing.
      */
     public void write(Point point) {
-        try {
-            getInflux().write(point);
-            this.healthChecker.health();
-        } catch (Throwable e) {
-            healthChecker.unHealth(e);
-            throw e;
-        }
+        getInflux().write(point);
     }
 
     /**
      * A batch operation of write. {@link Point}s flush directly.
      */
     public void write(BatchPoints points) {
-        try {
-            getInflux().write(points);
-            this.healthChecker.health();
-        } catch (Throwable e) {
-            healthChecker.unHealth(e);
-            throw e;
-        }
+        getInflux().write(points);
     }
 
     @Override
     public void shutdown() throws IOException {
-        try {
-            getInflux().close();
-            this.healthChecker.health();
-        } catch (Throwable e) {
-            healthChecker.unHealth(e);
-            throw new IOException(e);
-        }
+        influx.close();
     }
 
     /**
      * Convert to InfluxDB {@link TimeInterval}.
      */
-    public static TimeInterval timeIntervalTS(long timestamp) {
-        return ti(timestamp, "ms");
+    public static TimeInterval timeInterval(long timeBucket, DownSampling downsampling) {
+        return ti(TimeBucket.getTimestamp(timeBucket, downsampling), "ms");
     }
 
     /**
      * Convert to InfluxDB {@link TimeInterval}.
      */
-    public static TimeInterval timeIntervalTB(long timeBucket) {
+    public static TimeInterval timeInterval(long timeBucket) {
         return ti(TimeBucket.getTimestamp(timeBucket), "ms");
-    }
-
-    @Override
-    public void registerChecker(HealthChecker healthChecker) {
-        this.healthChecker.register(healthChecker);
     }
 }

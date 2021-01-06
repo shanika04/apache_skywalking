@@ -33,7 +33,7 @@ import org.springframework.web.client.RestTemplate;
 @RequestMapping("/resttemplate/case")
 public class FrontController {
 
-    private static final Logger LOGGER = LogManager.getLogger(FrontController.class);
+    private static Logger logger = LogManager.getLogger(FrontController.class);
 
     @Autowired
     private AsyncRestTemplate asyncRestTemplate;
@@ -60,7 +60,7 @@ public class FrontController {
         try {
             forEntity.get();
         } catch (Exception e) {
-            LOGGER.error("exception:", e);
+            logger.error("exception:", e);
         }
 
         return "Success";

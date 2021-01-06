@@ -25,10 +25,10 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 public class MysqlConfig {
-    private static final Logger LOGGER = LogManager.getLogger(MysqlConfig.class);
-    private static String URL;
-    private static String USER_NAME;
-    private static String PASSWORD;
+    private static Logger logger = LogManager.getLogger(MysqlConfig.class);
+    private static String url;
+    private static String userName;
+    private static String password;
 
     static {
         InputStream inputStream = MysqlConfig.class.getClassLoader().getResourceAsStream("/jdbc.properties");
@@ -36,23 +36,23 @@ public class MysqlConfig {
         try {
             properties.load(inputStream);
         } catch (IOException e) {
-            LOGGER.error("Failed to load config", e);
+            logger.error("Failed to load config", e);
         }
 
-        URL = properties.getProperty("mysql.url");
-        USER_NAME = properties.getProperty("mysql.username");
-        PASSWORD = properties.getProperty("mysql.password");
+        url = properties.getProperty("mysql.url");
+        userName = properties.getProperty("mysql.username");
+        password = properties.getProperty("mysql.password");
     }
 
     public static String getUrl() {
-        return URL;
+        return url;
     }
 
     public static String getUserName() {
-        return USER_NAME;
+        return userName;
     }
 
     public static String getPassword() {
-        return PASSWORD;
+        return password;
     }
 }

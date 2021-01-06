@@ -29,7 +29,6 @@ import org.apache.skywalking.apm.agent.test.helper.SegmentHelper;
 import org.apache.skywalking.apm.agent.test.tools.AgentServiceRule;
 import org.apache.skywalking.apm.agent.test.tools.SegmentStorage;
 import org.apache.skywalking.apm.agent.test.tools.SegmentStoragePoint;
-import org.apache.skywalking.apm.network.language.agent.v3.SpanObject;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -70,21 +69,13 @@ public class JobExecutorInterceptorTest {
         List<AbstractTracingSpan> spans = SegmentHelper.getSpans(segment);
         assertNotNull(spans);
         assertThat(spans.size(), is(1));
-
-        SpanObject.Builder builder = spans.get(0).transform();
-
-        assertThat(builder.getOperationName(), is("ElasticJob/fooJob"));
-        assertThat(builder.getComponentId(), is(24));
-        assertThat(builder.getTags(0).getKey(), is("x-le"));
-        assertThat(builder.getTags(0).getValue(), is("{\"logic-span\":true}"));
-        assertThat(builder.getTags(1).getKey(), is("item"));
-        assertThat(builder.getTags(1).getValue(), is("1"));
-        assertThat(builder.getTags(2).getKey(), is("taskId"));
-        assertThat(builder.getTags(2).getValue(), is("fooJob1"));
-        assertThat(builder.getTags(3).getKey(), is("shardingTotalCount"));
-        assertThat(builder.getTags(3).getValue(), is("2"));
-        assertThat(builder.getTags(4).getKey(), is("shardingItemParameters"));
-        assertThat(builder.getTags(4).getValue(), is("{1=test}"));
+        assertThat(spans.get(0).transform().getOperationName(), is("fooJob-test"));
+        assertThat(spans.get(0).transform().getComponentId(), is(24));
+        assertThat(spans.get(0).transform().getTags(0).getKey(), is("sharding_context"));
+        assertThat(spans.get(0)
+                        .transform()
+                        .getTags(0)
+                        .getValue(), is("ShardingContext(jobName=fooJob, taskId=fooJob1, shardingTotalCount=2, jobParameter=, shardingItem=1, shardingParameter=test)"));
     }
 
     @Test
@@ -98,21 +89,11 @@ public class JobExecutorInterceptorTest {
         List<AbstractTracingSpan> spans = SegmentHelper.getSpans(segment);
         assertNotNull(spans);
         assertThat(spans.size(), is(1));
-
-        SpanObject.Builder builder = spans.get(0).transform();
-
-        assertThat(builder.getOperationName(), is("ElasticJob/fooJob"));
-        assertThat(builder.getComponentId(), is(24));
-        assertThat(builder.getTags(0).getKey(), is("x-le"));
-        assertThat(builder.getTags(0).getValue(), is("{\"logic-span\":true}"));
-        assertThat(builder.getTags(1).getKey(), is("item"));
-        assertThat(builder.getTags(1).getValue(), is("0"));
-        assertThat(builder.getTags(2).getKey(), is("taskId"));
-        assertThat(builder.getTags(2).getValue(), is("fooJob0"));
-        assertThat(builder.getTags(3).getKey(), is("shardingTotalCount"));
-        assertThat(builder.getTags(3).getValue(), is("1"));
-        assertThat(builder.getTags(4).getKey(), is("shardingItemParameters"));
-        assertThat(builder.getTags(4).getValue(), is("{}"));
+        assertThat(spans.get(0).transform().getOperationName(), is("fooJob"));
+        assertThat(spans.get(0)
+                        .transform()
+                        .getTags(0)
+                        .getValue(), is("ShardingContext(jobName=fooJob, taskId=fooJob0, shardingTotalCount=1, jobParameter=, shardingItem=0, shardingParameter=null)"));
     }
 
     @Test

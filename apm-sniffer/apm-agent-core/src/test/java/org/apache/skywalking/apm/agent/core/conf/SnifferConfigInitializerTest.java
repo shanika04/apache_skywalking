@@ -48,7 +48,7 @@ public class SnifferConfigInitializerTest {
         System.setProperty("skywalking.agent.service_name", "testApp");
         System.setProperty("skywalking.collector.backend_service", "127.0.0.1:8090");
         System.setProperty("skywalking.logging.level", "info");
-        SnifferConfigInitializer.initializeCoreConfig(null);
+        SnifferConfigInitializer.initialize(null);
         assertThat(Config.Agent.SERVICE_NAME, is("testApp"));
         assertThat(Config.Collector.BACKEND_SERVICE, is("127.0.0.1:8090"));
         assertThat(Config.Logging.LEVEL, is(LogLevel.INFO));
@@ -57,7 +57,7 @@ public class SnifferConfigInitializerTest {
     @Test
     public void testLoadConfigFromAgentOptions() throws AgentPackageNotFoundException, ConfigNotFoundException {
         String agentOptions = "agent.service_name=testApp,collector.backend_service=127.0.0.1:8090,logging.level=info";
-        SnifferConfigInitializer.initializeCoreConfig(agentOptions);
+        SnifferConfigInitializer.initialize(agentOptions);
         assertThat(Config.Agent.SERVICE_NAME, is("testApp"));
         assertThat(Config.Collector.BACKEND_SERVICE, is("127.0.0.1:8090"));
         assertThat(Config.Logging.LEVEL, is(LogLevel.INFO));
@@ -70,7 +70,7 @@ public class SnifferConfigInitializerTest {
         System.setProperty("skywalking.agent.instance_properties[key2]", "value2");
         System.setProperty("skywalking.collector.backend_service", "127.0.0.1:8090");
         String agentOptions = "agent.service_name=testAppFromAgentOptions,logging.level=debug";
-        SnifferConfigInitializer.initializeCoreConfig(agentOptions);
+        SnifferConfigInitializer.initialize(agentOptions);
         assertThat(Config.Agent.SERVICE_NAME, is("testAppFromAgentOptions"));
         assertThat(Config.Collector.BACKEND_SERVICE, is("127.0.0.1:8090"));
         assertThat(Config.Logging.LEVEL, is(LogLevel.DEBUG));
@@ -98,7 +98,7 @@ public class SnifferConfigInitializerTest {
         System.setProperty("skywalking.agent.service_name", "testApp");
         System.setProperty("skywalking.collector.backend_service", "127.0.0.1:8090");
         String agentOptions = "agent.ignore_suffix='.jpg,.jpeg,.js,.css,.png,.bmp,.gif,.ico,.mp3,.mp4,.html,.svg'";
-        SnifferConfigInitializer.initializeCoreConfig(agentOptions);
+        SnifferConfigInitializer.initialize(agentOptions);
         assertThat(Config.Agent.IGNORE_SUFFIX, is(".jpg,.jpeg,.js,.css,.png,.bmp,.gif,.ico,.mp3,.mp4,.html,.svg"));
     }
 
@@ -107,13 +107,13 @@ public class SnifferConfigInitializerTest {
         System.setProperty("skywalking.collector.backend_service", "127.0.0.1:8090");
         String agentOptions = "agent.service_name=test=abc";
         try {
-            SnifferConfigInitializer.initializeCoreConfig(agentOptions);
+            SnifferConfigInitializer.initialize(agentOptions);
             fail("test=abc without quotes is not a valid value");
         } catch (ExceptionInInitializerError e) {
             // ignore
         }
         agentOptions = "agent.service_name='test=abc'";
-        SnifferConfigInitializer.initializeCoreConfig(agentOptions);
+        SnifferConfigInitializer.initialize(agentOptions);
         assertThat(Config.Agent.SERVICE_NAME, is("test=abc"));
     }
 

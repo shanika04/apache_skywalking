@@ -14,7 +14,7 @@
 # limitations under the License.
 
 endpoints:
-  - key: VXNlcl9TZXJ2aWNlX05hbWU=.1_L25naW54L2luZm8=
+  - key: not null
     label: /nginx/info
 
 

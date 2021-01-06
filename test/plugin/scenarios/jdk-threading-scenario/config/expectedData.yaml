@@ -19,7 +19,7 @@ segmentItems:
   segments:
   - segmentId: not null
     spans:
-    - operationName: '{GET}/greet/{username}'
+    - operationName: /greet/{username}
       operationId: 0
       parentSpanId: -1
       spanId: 0
@@ -51,7 +51,7 @@ segmentItems:
       - {key: url, value: 'https://github.com:-1/apache/skywalking'}
       - {key: http.method, value: GET}
       skipAnalysis: 'false'
-    - operationName: Threading/test.apache.skywalking.apm.testcase.jdk.threading.Application$TestController$1/run
+    - operationName: Threading/test.org.apache.skywalking.apm.testcase.jdk.threading.Application$TestController$1/run
       operationId: 0
       parentSpanId: -1
       spanId: 0
@@ -63,9 +63,9 @@ segmentItems:
       spanType: Local
       peer: ''
       refs:
-      - {parentEndpoint: '{GET}/greet/{username}', networkAddress: '', refType: CrossThread,
+      - {parentEndpoint: '/greet/{username}', networkAddress: '', refType: CrossThread,
         parentSpanId: 0, parentTraceSegmentId: not null, parentServiceInstance: not
-          null, parentService: jdk-threading-scenario, traceId: not null}
+          null, parentService: not null, traceId: not null}
       skipAnalysis: 'false'
   - segmentId: not null
     spans:
@@ -84,7 +84,7 @@ segmentItems:
       - {key: url, value: 'https://github.com:-1/apache/skywalking'}
       - {key: http.method, value: GET}
       skipAnalysis: 'false'
-    - operationName: Threading/test.apache.skywalking.apm.testcase.jdk.threading.Application$TestController$2/call
+    - operationName: Threading/test.org.apache.skywalking.apm.testcase.jdk.threading.Application$TestController$2/call
       operationId: 0
       parentSpanId: -1
       spanId: 0
@@ -96,7 +96,7 @@ segmentItems:
       spanType: Local
       peer: ''
       refs:
-      - {parentEndpoint: '{GET}/greet/{username}', networkAddress: '', refType: CrossThread,
+      - {parentEndpoint: '/greet/{username}', networkAddress: '', refType: CrossThread,
         parentSpanId: 0, parentTraceSegmentId: not null, parentServiceInstance: not
-          null, parentService: jdk-threading-scenario, traceId: not null}
+          null, parentService: not null, traceId: not null}
       skipAnalysis: 'false'

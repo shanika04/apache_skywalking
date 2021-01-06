@@ -19,7 +19,7 @@ package org.apache.skywalking.oap.server.core.analysis;
 
 public enum DownSampling {
     /**
-     * None downsampling is for un-time-series data.
+     * None downsampling is for inventory
      */
     None(0, ""),
     /**

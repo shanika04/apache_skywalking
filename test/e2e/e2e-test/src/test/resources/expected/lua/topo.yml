@@ -14,46 +14,41 @@
 # limitations under the License.
 
 nodes:
-  - id: VXNlcg==.0
+  - id: 1
     name: User
     type: USER
     isReal: false
-  - id: ZTJlLXNlcnZpY2UtZW50cnktcHJvdmlkZXI=.1
-    name: e2e-service-entry-provider
+  - id: 2
+    name: Your_ApplicationName
     type: Tomcat
     isReal: true
-  - id: VXNlcl9TZXJ2aWNlX05hbWU=.1
-    name: User_Service_Name
-    type: Nginx
-    isReal: true
-  - id: ZTJlLXNlcnZpY2UtZW5kLXByb3ZpZGVy.1
-    name: e2e-service-end-provider
-    type: Tomcat
-    isReal: true
-  - id: bG9jYWxob3N0Oi0x.0
+  - id: 3
     name: localhost:-1
     type: H2
     isReal: false
+  - id: 4
+    name: User_Service_Name
+    type: Nginx
+    isReal: true
 calls:
-  - id: VXNlcg==.0-ZTJlLXNlcnZpY2UtZW50cnktcHJvdmlkZXI=.1
-    source: VXNlcg==.0
+  - id: 1_4
+    source: 1
     detectPoints:
       - SERVER
-    target: ZTJlLXNlcnZpY2UtZW50cnktcHJvdmlkZXI=.1
-  - id: ZTJlLXNlcnZpY2UtZW50cnktcHJvdmlkZXI=.1-VXNlcl9TZXJ2aWNlX05hbWU=.1
-    source: ZTJlLXNlcnZpY2UtZW50cnktcHJvdmlkZXI=.1
+    target: 4
+  - id: 4_2
+    source: 4
     detectPoints:
       - CLIENT
       - SERVER
-    target: VXNlcl9TZXJ2aWNlX05hbWU=.1
-  - id: VXNlcl9TZXJ2aWNlX05hbWU=.1-ZTJlLXNlcnZpY2UtZW5kLXByb3ZpZGVy.1
-    source: VXNlcl9TZXJ2aWNlX05hbWU=.1
+    target: 2
+  - id: 2_3
+    source: 2
     detectPoints:
       - CLIENT
+    target: 3
+  - id: 1_2
+    source: 1
+    detectPoints:
       - SERVER
-    target: ZTJlLXNlcnZpY2UtZW5kLXByb3ZpZGVy.1
-  - id: ZTJlLXNlcnZpY2UtZW5kLXByb3ZpZGVy.1-bG9jYWxob3N0Oi0x.0
-    source: ZTJlLXNlcnZpY2UtZW5kLXByb3ZpZGVy.1
-    detectPoints:
-      - CLIENT
-    target: bG9jYWxob3N0Oi0x.0
+    target: 2

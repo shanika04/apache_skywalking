@@ -28,7 +28,7 @@ public class OnFailureInterceptor implements InstanceMethodsAroundInterceptor {
     @Override
     public void beforeMethod(EnhancedInstance objInst, Method method, Object[] allArguments, Class<?>[] argumentsTypes,
         MethodInterceptResult result) throws Throwable {
-        ContextManager.activeSpan().log((Throwable) allArguments[1]);
+        ContextManager.activeSpan().errorOccurred().log((Throwable) allArguments[1]);
     }
 
     @Override
@@ -40,6 +40,6 @@ public class OnFailureInterceptor implements InstanceMethodsAroundInterceptor {
     @Override
     public void handleMethodException(EnhancedInstance objInst, Method method, Object[] allArguments,
         Class<?>[] argumentsTypes, Throwable t) {
-        ContextManager.activeSpan().log(t);
+        ContextManager.activeSpan().errorOccurred().log(t);
     }
 }

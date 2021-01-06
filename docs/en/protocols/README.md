@@ -10,8 +10,12 @@ There are two types of protocols list here.
 They also related to the probe group, for understand that, look [Concepts and Designs](../concepts-and-designs/README.md) document.
 These groups are **Language based native agent protocol**, **Service Mesh protocol** and **3rd-party instrument protocol**.
 
+### Register Protocol
+Register protocol is shared in `Language based native agent protocol`[Required] and `Service Mesh probe protocol`[Optional]. 
+Service, Service Instance, Network address and Endpoint could do register to get an unique integer ID to replace the literal string name and attributes. The probe could use IDs to reduce the cost of memory and network bandwidth. Service and Instance register are required in the language agent. All other cases, register are optional.
+
 ### Language based native agent protocol
-There are two types of protocols to make language agents work in distributed environments.
+There is two types of protocols to make language agents work in distributed environments.
 1. **Cross Process Propagation Headers Protocol** and **Cross Process Correlation Headers Protocol** are in wire data format, 
 agent/SDK usually uses HTTP/MQ/HTTP2 headers
 to carry the data with rpc request. The remote agent will receive this in the request handler, and bind the context 
@@ -29,11 +33,6 @@ SkyWalking javaagent begins to support this since 8.0.0.
 
 [SkyWalking Trace Data Protocol v3](Trace-Data-Protocol-v3.md) defines the communication way and format between agent and backend.
 
-### Browser probe protocol
-
-The browser probe, such as  [skywalking-client-js](https://github.com/apache/skywalking-client-js) could use this protocol to send to backend. This service provided by gRPC.
-
-[SkyWalking Browser Protocol](Browser-Protocol.md) define the communication way and format between `skywalking-client-js` and backend.
 
 ### Service Mesh probe protocol
 The probe in sidecar or proxy could use this protocol to send data to backendEnd. This service provided by gRPC, requires 

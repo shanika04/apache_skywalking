@@ -20,14 +20,14 @@ package org.apache.skywalking.oap.server.core.query;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.stream.Collectors;
-import org.apache.skywalking.oap.server.core.Const;
 import org.apache.skywalking.oap.server.core.analysis.IDManager;
-import org.apache.skywalking.oap.server.core.query.type.Database;
-import org.apache.skywalking.oap.server.core.query.type.Endpoint;
-import org.apache.skywalking.oap.server.core.query.type.EndpointInfo;
-import org.apache.skywalking.oap.server.core.query.type.Service;
-import org.apache.skywalking.oap.server.core.query.type.ServiceInstance;
+import org.apache.skywalking.oap.server.core.query.entity.ClusterBrief;
+import org.apache.skywalking.oap.server.core.query.entity.Database;
+import org.apache.skywalking.oap.server.core.query.entity.Endpoint;
+import org.apache.skywalking.oap.server.core.query.entity.EndpointInfo;
+import org.apache.skywalking.oap.server.core.query.entity.Service;
+import org.apache.skywalking.oap.server.core.query.entity.ServiceInstance;
+import org.apache.skywalking.oap.server.core.analysis.NodeType;
 import org.apache.skywalking.oap.server.core.storage.StorageModule;
 import org.apache.skywalking.oap.server.core.storage.query.IMetadataQueryDAO;
 import org.apache.skywalking.oap.server.library.module.ModuleManager;
@@ -48,18 +48,22 @@ public class MetadataQueryService implements org.apache.skywalking.oap.server.li
         return metadataQueryDAO;
     }
 
-    public List<Service> getAllServices(final String group) throws IOException {
-        return getMetadataQueryDAO().getAllServices(group).stream()
-                                    .map(service -> {
-                                        if (service.getGroup() == null) {
-                                            service.setGroup(Const.EMPTY_STRING);
-                                        }
-                                        return service;
-                                    }).collect(Collectors.toList());
+    public ClusterBrief getGlobalBrief(final long startTimestamp, final long endTimestamp) throws IOException {
+        ClusterBrief clusterBrief = new ClusterBrief();
+        clusterBrief.setNumOfService(getMetadataQueryDAO().numOfService(startTimestamp, endTimestamp));
+        clusterBrief.setNumOfEndpoint(getMetadataQueryDAO().numOfEndpoint());
+        clusterBrief.setNumOfDatabase(getMetadataQueryDAO().numOfConjectural(NodeType.Database.value()));
+        clusterBrief.setNumOfCache(getMetadataQueryDAO().numOfConjectural(NodeType.Cache.value()));
+        clusterBrief.setNumOfMQ(getMetadataQueryDAO().numOfConjectural(NodeType.MQ.value()));
+        return clusterBrief;
     }
 
-    public List<Service> getAllBrowserServices() throws IOException {
-        return getMetadataQueryDAO().getAllBrowserServices();
+    public List<Service> getAllServices(final long startTimestamp, final long endTimestamp) throws IOException {
+        return getMetadataQueryDAO().getAllServices(startTimestamp, endTimestamp);
+    }
+
+    public List<Service> getAllBrowserServices(final long startTimestamp, final long endTimestamp) throws IOException {
+        return getMetadataQueryDAO().getAllBrowserServices(startTimestamp, endTimestamp);
     }
 
     public List<Database> getAllDatabases() throws IOException {
@@ -68,7 +72,7 @@ public class MetadataQueryService implements org.apache.skywalking.oap.server.li
 
     public List<Service> searchServices(final long startTimestamp, final long endTimestamp,
                                         final String keyword) throws IOException {
-        return getMetadataQueryDAO().searchServices(keyword);
+        return getMetadataQueryDAO().searchServices(startTimestamp, endTimestamp, keyword);
     }
 
     public List<ServiceInstance> getServiceInstances(final long startTimestamp, final long endTimestamp,

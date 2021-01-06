@@ -21,8 +21,8 @@ package org.apache.skywalking.apm.agent.core.profile;
 import io.grpc.Channel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.grpc.stub.StreamObserver;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -39,10 +39,12 @@ import org.apache.skywalking.apm.agent.core.logging.api.LogManager;
 import org.apache.skywalking.apm.agent.core.remote.GRPCChannelListener;
 import org.apache.skywalking.apm.agent.core.remote.GRPCChannelManager;
 import org.apache.skywalking.apm.agent.core.remote.GRPCChannelStatus;
+import org.apache.skywalking.apm.agent.core.remote.GRPCStreamServiceStatus;
 import org.apache.skywalking.apm.network.common.v3.Commands;
 import org.apache.skywalking.apm.network.language.profile.v3.ProfileTaskCommandQuery;
 import org.apache.skywalking.apm.network.language.profile.v3.ProfileTaskFinishReport;
 import org.apache.skywalking.apm.network.language.profile.v3.ProfileTaskGrpc;
+import org.apache.skywalking.apm.network.language.profile.v3.ThreadSnapshot;
 import org.apache.skywalking.apm.util.RunnableWithExceptionProtection;
 
 import static org.apache.skywalking.apm.agent.core.conf.Config.Collector.GRPC_UPSTREAM_TIMEOUT;
@@ -55,14 +57,14 @@ import static org.apache.skywalking.apm.agent.core.conf.Config.Collector.GRPC_UP
  */
 @DefaultImplementor
 public class ProfileTaskChannelService implements BootService, Runnable, GRPCChannelListener {
-    private static final ILog LOGGER = LogManager.getLogger(ProfileTaskChannelService.class);
+    private static final ILog logger = LogManager.getLogger(ProfileTaskChannelService.class);
 
     // channel status
     private volatile GRPCChannelStatus status = GRPCChannelStatus.DISCONNECT;
 
     // gRPC stub
     private volatile ProfileTaskGrpc.ProfileTaskBlockingStub profileTaskBlockingStub;
-
+    private volatile ProfileTaskGrpc.ProfileTaskStub profileTaskStub;
 
     // segment snapshot sender
     private final BlockingQueue<TracingThreadSnapshot> snapshotQueue = new LinkedBlockingQueue<>(
@@ -72,8 +74,6 @@ public class ProfileTaskChannelService implements BootService, Runnable, GRPCCha
     // query task list schedule
     private volatile ScheduledFuture<?> getTaskListFuture;
 
-    private ProfileSnapshotSender sender;
-
     @Override
     public void run() {
         if (status == GRPCChannelStatus.CONNECTED) {
@@ -81,7 +81,8 @@ public class ProfileTaskChannelService implements BootService, Runnable, GRPCCha
                 ProfileTaskCommandQuery.Builder builder = ProfileTaskCommandQuery.newBuilder();
 
                 // sniffer info
-                builder.setService(Config.Agent.SERVICE_NAME).setServiceInstance(Config.Agent.INSTANCE_NAME);
+                builder.setService(Config.Agent.SERVICE_NAME)
+                       .setServiceInstance(Config.Agent.INSTANCE_NAME);
 
                 // last command create time
                 builder.setLastCommandTime(ServiceManager.INSTANCE.findService(ProfileTaskExecutionService.class)
@@ -93,12 +94,12 @@ public class ProfileTaskChannelService implements BootService, Runnable, GRPCCha
                 ServiceManager.INSTANCE.findService(CommandService.class).receiveCommand(commands);
             } catch (Throwable t) {
                 if (!(t instanceof StatusRuntimeException)) {
-                    LOGGER.error(t, "Query profile task from backend fail.");
+                    logger.error(t, "Query profile task from backend fail.");
                     return;
                 }
                 final StatusRuntimeException statusRuntimeException = (StatusRuntimeException) t;
                 if (statusRuntimeException.getStatus().getCode() == Status.Code.UNIMPLEMENTED) {
-                    LOGGER.warn("Backend doesn't support profiling, profiling will be disabled");
+                    logger.warn("Backend doesn't support profiling, profiling will be disabled");
                     if (getTaskListFuture != null) {
                         getTaskListFuture.cancel(true);
                     }
@@ -119,8 +120,6 @@ public class ProfileTaskChannelService implements BootService, Runnable, GRPCCha
 
     @Override
     public void boot() {
-        sender = ServiceManager.INSTANCE.findService(ProfileSnapshotSender.class);
-
         if (Config.Profile.ACTIVE) {
             // query task list
             getTaskListFuture = Executors.newSingleThreadScheduledExecutor(
@@ -128,7 +127,7 @@ public class ProfileTaskChannelService implements BootService, Runnable, GRPCCha
             ).scheduleWithFixedDelay(
                 new RunnableWithExceptionProtection(
                     this,
-                    t -> LOGGER.error("Query profile task list failure.", t)
+                    t -> logger.error("Query profile task list failure.", t)
                 ), 0, Config.Collector.GET_PROFILE_TASK_INTERVAL, TimeUnit.SECONDS
             );
 
@@ -136,14 +135,8 @@ public class ProfileTaskChannelService implements BootService, Runnable, GRPCCha
                 new DefaultNamedThreadFactory("ProfileSendSnapshotService")
             ).scheduleWithFixedDelay(
                 new RunnableWithExceptionProtection(
-                    () -> {
-                        List<TracingThreadSnapshot> buffer = new ArrayList<>(Config.Profile.SNAPSHOT_TRANSPORT_BUFFER_SIZE);
-                        snapshotQueue.drainTo(buffer);
-                        if (!buffer.isEmpty()) {
-                            sender.send(buffer);
-                        }
-                    },
-                    t -> LOGGER.error("Profile segment snapshot upload failure.", t)
+                    new SnapshotSender(),
+                    t -> logger.error("Profile segment snapshot upload failure.", t)
                 ), 0, 500, TimeUnit.MILLISECONDS
             );
         }
@@ -169,8 +162,10 @@ public class ProfileTaskChannelService implements BootService, Runnable, GRPCCha
         if (GRPCChannelStatus.CONNECTED.equals(status)) {
             Channel channel = ServiceManager.INSTANCE.findService(GRPCChannelManager.class).getChannel();
             profileTaskBlockingStub = ProfileTaskGrpc.newBlockingStub(channel);
+            profileTaskStub = ProfileTaskGrpc.newStub(channel);
         } else {
             profileTaskBlockingStub = null;
+            profileTaskStub = null;
         }
         this.status = status;
     }
@@ -198,8 +193,66 @@ public class ProfileTaskChannelService implements BootService, Runnable, GRPCCha
             profileTaskBlockingStub.withDeadlineAfter(GRPC_UPSTREAM_TIMEOUT, TimeUnit.SECONDS)
                                    .reportTaskFinish(reportBuilder.build());
         } catch (Throwable e) {
-            LOGGER.error(e, "Notify profile task finish to backend fail.");
+            logger.error(e, "Notify profile task finish to backend fail.");
         }
     }
 
+    /**
+     * send segment snapshot
+     */
+    private class SnapshotSender implements Runnable {
+
+        @Override
+        public void run() {
+            if (status == GRPCChannelStatus.CONNECTED) {
+                try {
+                    ArrayList<TracingThreadSnapshot> buffer = new ArrayList<>(
+                        Config.Profile.SNAPSHOT_TRANSPORT_BUFFER_SIZE);
+                    snapshotQueue.drainTo(buffer);
+                    if (buffer.size() > 0) {
+                        final GRPCStreamServiceStatus status = new GRPCStreamServiceStatus(false);
+                        StreamObserver<ThreadSnapshot> snapshotStreamObserver = profileTaskStub.withDeadlineAfter(
+                            GRPC_UPSTREAM_TIMEOUT, TimeUnit.SECONDS
+                        ).collectSnapshot(
+                            new StreamObserver<Commands>() {
+                                @Override
+                                public void onNext(
+                                    Commands commands) {
+                                }
+
+                                @Override
+                                public void onError(
+                                    Throwable throwable) {
+                                    status.finished();
+                                    if (logger.isErrorEnable()) {
+                                        logger.error(
+                                            throwable,
+                                            "Send profile segment snapshot to collector fail with a grpc internal exception."
+                                        );
+                                    }
+                                    ServiceManager.INSTANCE.findService(GRPCChannelManager.class)
+                                                           .reportError(throwable);
+                                }
+
+                                @Override
+                                public void onCompleted() {
+                                    status.finished();
+                                }
+                            }
+                        );
+                        for (TracingThreadSnapshot snapshot : buffer) {
+                            final ThreadSnapshot transformSnapshot = snapshot.transform();
+                            snapshotStreamObserver.onNext(transformSnapshot);
+                        }
+
+                        snapshotStreamObserver.onCompleted();
+                        status.wait4Finish();
+                    }
+                } catch (Throwable t) {
+                    logger.error(t, "Send profile segment snapshot to backend fail.");
+                }
+            }
+        }
+
+    }
 }

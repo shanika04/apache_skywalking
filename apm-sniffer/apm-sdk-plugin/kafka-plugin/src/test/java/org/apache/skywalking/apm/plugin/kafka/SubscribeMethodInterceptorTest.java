@@ -28,7 +28,6 @@ import org.mockito.runners.MockitoJUnitRunner;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.regex.Pattern;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
@@ -39,9 +38,7 @@ public class SubscribeMethodInterceptorTest {
     @Mock
     private SubscribeMethodInterceptor constructorInterceptor;
 
-    private List<String> mockTopics = new ArrayList<>();
-
-    private Pattern mockTopicPattern = Pattern.compile("test-.*");
+    private List<String> mockTopics = new ArrayList<String>();
 
     private EnhancedInstance enhancedInstance = new EnhancedInstance() {
         ConsumerEnhanceRequiredInfo consumerEnhanceRequiredInfo = new ConsumerEnhanceRequiredInfo();
@@ -65,16 +62,9 @@ public class SubscribeMethodInterceptorTest {
     }
 
     @Test
-    public void testOnConsumer() {
+    public void testOnConsumer() throws Throwable {
         constructorInterceptor.beforeMethod(enhancedInstance, null, new Object[] {mockTopics}, new Class[] {Collection.class}, null);
         ConsumerEnhanceRequiredInfo requiredInfo = (ConsumerEnhanceRequiredInfo) enhancedInstance.getSkyWalkingDynamicField();
         assertThat(requiredInfo.getTopics(), is("test;test-1"));
-    }
-
-    @Test
-    public void testSubscribeForPattern() {
-        constructorInterceptor.beforeMethod(enhancedInstance, null, new Object[] {mockTopicPattern}, new Class[] {Pattern.class}, null);
-        ConsumerEnhanceRequiredInfo requiredInfo = (ConsumerEnhanceRequiredInfo) enhancedInstance.getSkyWalkingDynamicField();
-        assertThat(requiredInfo.getTopics(), is("test-.*"));
     }
 }

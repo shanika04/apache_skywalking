@@ -35,7 +35,6 @@ public class ConsumerTest {
 
     @Test
     public void testConsumerLessThanChannel() throws IllegalAccessException {
-
         final DataCarrier<SampleData> carrier = new DataCarrier<SampleData>(2, 100);
 
         for (int i = 0; i < 100; i++) {
@@ -57,7 +56,6 @@ public class ConsumerTest {
 
     @Test
     public void testConsumerMoreThanChannel() throws IllegalAccessException, InterruptedException {
-        BUFFER.drainTo(new ArrayList<SampleData>());
         final DataCarrier<SampleData> carrier = new DataCarrier<SampleData>(2, 100);
 
         for (int i = 0; i < 200; i++) {

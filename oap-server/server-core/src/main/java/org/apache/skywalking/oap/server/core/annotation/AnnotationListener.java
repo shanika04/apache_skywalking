@@ -19,11 +19,10 @@
 package org.apache.skywalking.oap.server.core.annotation;
 
 import java.lang.annotation.Annotation;
-import org.apache.skywalking.oap.server.core.storage.StorageException;
 
 public interface AnnotationListener {
 
     Class<? extends Annotation> annotation();
 
-    void notify(Class aClass) throws StorageException;
+    void notify(Class aClass);
 }

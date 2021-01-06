@@ -36,11 +36,6 @@ public enum NoopLogger implements ILog {
     }
 
     @Override
-    public void info(final Throwable t, final String format, final Object... arguments) {
-
-    }
-
-    @Override
     public void warn(String format, Object... arguments) {
 
     }
@@ -71,11 +66,6 @@ public enum NoopLogger implements ILog {
     }
 
     @Override
-    public boolean isTraceEnabled() {
-        return false;
-    }
-
-    @Override
     public void debug(String format) {
 
     }
@@ -92,21 +82,6 @@ public enum NoopLogger implements ILog {
 
     @Override
     public void error(String format) {
-
-    }
-
-    @Override
-    public void trace(final String format) {
-
-    }
-
-    @Override
-    public void trace(final String format, final Object... arguments) {
-
-    }
-
-    @Override
-    public void trace(final Throwable t, final String format, final Object... arguments) {
 
     }
 

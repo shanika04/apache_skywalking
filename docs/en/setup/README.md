@@ -1,5 +1,5 @@
 # Setup
-The document explains how to install Skywalking based on the kind of probes you are going to use.
+The document explains how to install Skywalking based on the kind of probes you are going to use. 
 If you don't understand, please read [Concepts and Designs](../concepts-and-designs/README.md) first.
 
 
@@ -16,33 +16,21 @@ If you have any issues, please check that your issue is not already described in
 
 - [LUA agent](https://github.com/apache/skywalking-nginx-lua). Introduce how to install the lua agent in Nginx + LUA module or OpenResty.
 
-- [Python Agent](https://github.com/apache/skywalking-python). Introduce how to install the Python Agent in a Python service.
-
-- [Node.js agent](https://github.com/apache/skywalking-nodejs). Introduce how to install the NodeJS Agent in a NodeJS service.
-
 The following agents and SDKs are compatible with the SkyWalking's data formats and network protocols, but are maintained by 3rd-parties.
 You can go to their project repositories for additional info about guides and releases.
 
 - [SkyAPM .NET Core agent](https://github.com/SkyAPM/SkyAPM-dotnet). See .NET Core agent project document for more details.
-
+  
 - [SkyAPM Node.js agent](https://github.com/SkyAPM/SkyAPM-nodejs). See Node.js server side agent project document for more details.
 
-- [SkyAPM PHP agent](https://github.com/SkyAPM/SkyAPM-php-sdk). See PHP agent project document for more details.
+- [SkyAPM PHP SDK](https://github.com/SkyAPM/SkyAPM-php-sdk). See PHP agent project document for more details.
 
-- [SkyAPM Go SDK](https://github.com/SkyAPM/go2sky). See go2sky project document for more details.
-
-- [SkyAPM C++ SDK](https://github.com/SkyAPM/cpp2sky). See cpp2sky project document for more details.
-
-## Browser Monitoring
-[Apache SkyWalking Client JS](https://github.com/apache/skywalking-client-js). Support collecting metrics and error logs
-for the Browser or JavaScript based mobile app. 
-
-Note, make sure the [`receiver-browser`](backend/backend-receivers.md) has been opened, default is **ON** since 8.2.0.
+- [SkyAPM GO2Sky](https://github.com/SkyAPM/go2sky). See GO2Sky project document for more details.
 
 ## Service Mesh
 
   - Istio
-    - [SkyWalking on Istio](istio/README.md). Introduces how to analyze Istio metrics.
+    - [SkyWalking on Istio](istio/README.md). Introduces how to use Istio Mixer bypass adapter to work with SkyWalking.
   - Envoy
     - Use [ALS (access log service)](https://www.envoyproxy.io/docs/envoy/latest/api-v2/service/accesslog/v2/als.proto) to observe service mesh, without Mixer. Follow [document](envoy/als_setting.md) for guides.
 
@@ -58,3 +46,6 @@ Follow [backend and UI setup document](backend/backend-ui-setup.md) to understan
 ## Changes log
 
 Backend, UI and Java agent changes are available [here](../../../CHANGES.md).
+
+## Upgrade FAQ
+[6.x version upgrade FAQ](../FAQ/v6-version-upgrade.md) introduces the recommendation ways to do SkyWalking upgrade.

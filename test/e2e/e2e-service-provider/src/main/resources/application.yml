@@ -32,12 +32,3 @@ spring:
     properties:
       hibernate.format_sql: true
     show-sql: true
-
-management:
-  metrics:
-    use-global-registry: true
-    web:
-      server:
-        request:
-          autotime:
-            enabled: true

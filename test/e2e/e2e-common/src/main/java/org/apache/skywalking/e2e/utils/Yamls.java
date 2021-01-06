@@ -38,10 +38,6 @@ public final class Yamls {
         <T> T as(final Class<T> klass);
     }
 
-    public static boolean exists(final String file) {
-        return new ClassPathResource(Envs.resolve(file)).exists();
-    }
-
     public static AsTypeBuilder load(final String file) throws IOException {
         final InputStream inputStream = new ClassPathResource(Envs.resolve(file)).getInputStream();
 
@@ -60,15 +56,6 @@ public final class Yamls {
             @Override
             public <T> T as(final Class<T> klass) {
                 return new Yaml().loadAs(inputStream, klass);
-            }
-        };
-    }
-
-    public static AsTypeBuilder load(final StringBuilder content) {
-        return new AsTypeBuilder() {
-            @Override
-            public <T> T as(final Class<T> klass) {
-                return new Yaml().loadAs(content.toString(), klass);
             }
         };
     }

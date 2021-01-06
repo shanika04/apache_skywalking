@@ -27,15 +27,14 @@ import java.util.List;
 import org.apache.skywalking.apm.util.StringUtil;
 import org.apache.skywalking.oap.server.core.analysis.IDManager;
 import org.apache.skywalking.oap.server.core.analysis.manual.segment.SegmentRecord;
-import org.apache.skywalking.oap.server.core.analysis.manual.segment.SpanTag;
-import org.apache.skywalking.oap.server.core.query.type.BasicTrace;
-import org.apache.skywalking.oap.server.core.query.type.KeyValue;
-import org.apache.skywalking.oap.server.core.query.type.LogEntity;
-import org.apache.skywalking.oap.server.core.query.type.QueryOrder;
-import org.apache.skywalking.oap.server.core.query.type.Ref;
-import org.apache.skywalking.oap.server.core.query.type.RefType;
-import org.apache.skywalking.oap.server.core.query.type.TraceBrief;
-import org.apache.skywalking.oap.server.core.query.type.TraceState;
+import org.apache.skywalking.oap.server.core.query.entity.BasicTrace;
+import org.apache.skywalking.oap.server.core.query.entity.KeyValue;
+import org.apache.skywalking.oap.server.core.query.entity.LogEntity;
+import org.apache.skywalking.oap.server.core.query.entity.QueryOrder;
+import org.apache.skywalking.oap.server.core.query.entity.Ref;
+import org.apache.skywalking.oap.server.core.query.entity.RefType;
+import org.apache.skywalking.oap.server.core.query.entity.TraceBrief;
+import org.apache.skywalking.oap.server.core.query.entity.TraceState;
 import org.apache.skywalking.oap.server.core.storage.query.ITraceQueryDAO;
 import org.apache.skywalking.oap.server.library.client.elasticsearch.ElasticSearchClient;
 import org.apache.skywalking.oap.server.library.util.BooleanUtils;
@@ -87,8 +86,7 @@ public class ZipkinTraceQueryEsDAO extends EsDAO implements ITraceQueryDAO {
                                        int limit,
                                        int from,
                                        TraceState traceState,
-                                       QueryOrder queryOrder,
-                                       final List<SpanTag> tags) throws IOException {
+                                       QueryOrder queryOrder) throws IOException {
 
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
 
@@ -180,7 +178,7 @@ public class ZipkinTraceQueryEsDAO extends EsDAO implements ITraceQueryDAO {
     }
 
     @Override
-    public List<org.apache.skywalking.oap.server.core.query.type.Span> doFlexibleTraceQuery(
+    public List<org.apache.skywalking.oap.server.core.query.entity.Span> doFlexibleTraceQuery(
         String traceId) throws IOException {
         SearchSourceBuilder sourceBuilder = SearchSourceBuilder.searchSource();
         sourceBuilder.query(QueryBuilders.termQuery(TRACE_ID, traceId));
@@ -189,14 +187,14 @@ public class ZipkinTraceQueryEsDAO extends EsDAO implements ITraceQueryDAO {
 
         SearchResponse response = getClient().search(ZipkinSpanRecord.INDEX_NAME, sourceBuilder);
 
-        List<org.apache.skywalking.oap.server.core.query.type.Span> spanList = new ArrayList<>();
+        List<org.apache.skywalking.oap.server.core.query.entity.Span> spanList = new ArrayList<>();
 
         for (SearchHit searchHit : response.getHits().getHits()) {
             String serviceId = (String) searchHit.getSourceAsMap().get(SERVICE_ID);
             String dataBinaryBase64 = (String) searchHit.getSourceAsMap().get(SegmentRecord.DATA_BINARY);
             Span span = SpanBytesDecoder.PROTO3.decodeOne(Base64.getDecoder().decode(dataBinaryBase64));
 
-            org.apache.skywalking.oap.server.core.query.type.Span swSpan = new org.apache.skywalking.oap.server.core.query.type.Span();
+            org.apache.skywalking.oap.server.core.query.entity.Span swSpan = new org.apache.skywalking.oap.server.core.query.entity.Span();
 
             swSpan.setTraceId(span.traceId());
             swSpan.setEndpointName(span.name());

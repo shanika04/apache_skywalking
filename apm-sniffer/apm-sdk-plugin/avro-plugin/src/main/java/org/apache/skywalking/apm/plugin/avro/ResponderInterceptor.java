@@ -56,7 +56,7 @@ public class ResponderInterceptor implements InstanceConstructorInterceptor, Ins
     public void handleMethodException(EnhancedInstance enhancedInstance, Method method, Object[] objects,
         Class<?>[] classes, Throwable throwable) {
         if (ContextManager.isActive()) {
-            ContextManager.activeSpan().log(throwable);
+            ContextManager.activeSpan().errorOccurred().log(throwable);
         }
     }
 }

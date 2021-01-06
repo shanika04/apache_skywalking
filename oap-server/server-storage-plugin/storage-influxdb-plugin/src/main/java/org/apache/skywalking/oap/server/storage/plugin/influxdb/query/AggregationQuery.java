@@ -24,18 +24,17 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.skywalking.oap.server.core.query.enumeration.Order;
-import org.apache.skywalking.oap.server.core.query.input.Duration;
-import org.apache.skywalking.oap.server.core.query.input.TopNCondition;
-import org.apache.skywalking.oap.server.core.query.type.KeyValue;
-import org.apache.skywalking.oap.server.core.query.type.SelectedRecord;
+import org.apache.skywalking.oap.server.core.analysis.DownSampling;
+import org.apache.skywalking.oap.server.core.analysis.manual.endpoint.EndpointTraffic;
+import org.apache.skywalking.oap.server.core.analysis.manual.instance.InstanceTraffic;
+import org.apache.skywalking.oap.server.core.query.entity.Order;
+import org.apache.skywalking.oap.server.core.query.entity.TopNEntity;
 import org.apache.skywalking.oap.server.core.storage.query.IAggregationQueryDAO;
 import org.apache.skywalking.oap.server.storage.plugin.influxdb.InfluxClient;
-import org.apache.skywalking.oap.server.storage.plugin.influxdb.InfluxConstants;
+import org.apache.skywalking.oap.server.storage.plugin.influxdb.base.MetricsDAO;
 import org.influxdb.dto.QueryResult;
 import org.influxdb.querybuilder.SelectQueryImpl;
 import org.influxdb.querybuilder.SelectSubQueryImpl;
-import org.influxdb.querybuilder.WhereSubQueryImpl;
 
 import static org.influxdb.querybuilder.BuiltQuery.QueryBuilder.eq;
 import static org.influxdb.querybuilder.BuiltQuery.QueryBuilder.gte;
@@ -44,50 +43,67 @@ import static org.influxdb.querybuilder.BuiltQuery.QueryBuilder.select;
 
 @Slf4j
 public class AggregationQuery implements IAggregationQueryDAO {
-    private static final Comparator<SelectedRecord> ASCENDING =
-        Comparator.comparingLong(a -> Long.parseLong(a.getValue()));
-    private static final Comparator<SelectedRecord> DESCENDING = (a, b) ->
-        Long.compare(Long.parseLong(b.getValue()), Long.parseLong(a.getValue()));
-    private final InfluxClient client;
+    private InfluxClient client;
 
     public AggregationQuery(InfluxClient client) {
         this.client = client;
     }
 
     @Override
-    public List<SelectedRecord> sortMetrics(final TopNCondition condition,
-                                            final String valueColumnName,
-                                            final Duration duration,
-                                            final List<KeyValue> additionalConditions) throws IOException {
-        String measurement = condition.getName();
+    public List<TopNEntity> getServiceTopN(String indName, String valueCName, int topN, DownSampling downsampling,
+                                           long startTB, long endTB, Order order) throws IOException {
+        return getTopNEntity(downsampling, indName, subQuery(indName, valueCName, startTB, endTB), order, topN);
+    }
 
+    @Override
+    public List<TopNEntity> getAllServiceInstanceTopN(String indName, String valueCName, int topN,
+                                                      DownSampling downsampling,
+                                                      long startTB, long endTB, Order order) throws IOException {
+        return getTopNEntity(downsampling, indName, subQuery(indName, valueCName, startTB, endTB), order, topN);
+    }
+
+    @Override
+    public List<TopNEntity> getServiceInstanceTopN(String serviceId, String indName, String valueCName, int topN,
+                                                   DownSampling downsampling,
+                                                   long startTB, long endTB, Order order) throws IOException {
+        return getTopNEntity(
+            downsampling, indName,
+            subQuery(InstanceTraffic.SERVICE_ID, serviceId, indName, valueCName, startTB, endTB), order, topN
+        );
+    }
+
+    @Override
+    public List<TopNEntity> getAllEndpointTopN(String indName, String valueCName, int topN, DownSampling downsampling,
+                                               long startTB, long endTB, Order order) throws IOException {
+        return getTopNEntity(downsampling, indName, subQuery(indName, valueCName, startTB, endTB), order, topN);
+    }
+
+    @Override
+    public List<TopNEntity> getEndpointTopN(String serviceId, String indName, String valueCName, int topN,
+                                            DownSampling downsampling,
+                                            long startTB, long endTB, Order order) throws IOException {
+        return getTopNEntity(
+            downsampling, indName,
+            subQuery(EndpointTraffic.SERVICE_ID, serviceId, indName, valueCName, startTB, endTB), order, topN
+        );
+    }
+
+    private List<TopNEntity> getTopNEntity(DownSampling downsampling,
+                                           String measurement,
+                                           SelectSubQueryImpl<SelectQueryImpl> subQuery,
+                                           Order order,
+                                           int topN) throws IOException {
         // Have to re-sort here. Because the function, top()/bottom(), get the result ordered by the `time`.
-        Comparator<SelectedRecord> comparator = DESCENDING;
-        String functionName = InfluxConstants.SORT_DES;
-        if (condition.getOrder().equals(Order.ASC)) {
-            functionName = InfluxConstants.SORT_ASC;
+        Comparator<TopNEntity> comparator = DESCENDING;
+        String functionName = "top";
+        if (order == Order.ASC) {
+            functionName = "bottom";
             comparator = ASCENDING;
         }
 
-        SelectQueryImpl query = select().function(functionName, "mean", condition.getTopN()).as("value")
-                                        .column(InfluxConstants.TagName.ENTITY_ID)
+        SelectQueryImpl query = select().function(functionName, "mean", topN).as("value")
+                                        .column(MetricsDAO.TAG_ENTITY_ID)
                                         .from(client.getDatabase(), measurement);
-
-        WhereSubQueryImpl<SelectSubQueryImpl<SelectQueryImpl>, SelectQueryImpl> where = select()
-            .fromSubQuery(client.getDatabase())
-            .mean(valueColumnName)
-            .from(condition.getName())
-            .where();
-        if (additionalConditions != null) {
-            additionalConditions.forEach(moreCondition ->
-                                             where.and(eq(moreCondition.getKey(), moreCondition.getValue()))
-            );
-        }
-        final SelectSubQueryImpl<SelectQueryImpl> subQuery = where
-            .and(gte(InfluxClient.TIME, InfluxClient.timeIntervalTS(duration.getStartTimestamp())))
-            .and(lte(InfluxClient.TIME, InfluxClient.timeIntervalTS(duration.getEndTimestamp())))
-            .groupBy(InfluxConstants.TagName.ENTITY_ID);
-
         query.setSubQuery(subQuery);
 
         List<QueryResult.Series> series = client.queryForSeries(query);
@@ -99,16 +115,38 @@ public class AggregationQuery implements IAggregationQueryDAO {
         }
 
         List<List<Object>> dataset = series.get(0).getValues();
-        List<SelectedRecord> entities = Lists.newArrayListWithCapacity(dataset.size());
+        List<TopNEntity> entities = Lists.newArrayListWithCapacity(dataset.size());
         dataset.forEach(values -> {
-            final SelectedRecord entity = new SelectedRecord();
+            final TopNEntity entity = new TopNEntity();
             entity.setId((String) values.get(2));
-            entity.setValue(((Double) values.get(1)).longValue() + "");
+            entity.setValue(((Double) values.get(1)).longValue());
             entities.add(entity);
         });
 
-        entities.sort(comparator); // re-sort by self, because of the result order by time.
+        Collections.sort(entities, comparator); // re-sort by self, because of the result order by time.
         return entities;
     }
 
+    private SelectSubQueryImpl<SelectQueryImpl> subQuery(String serviceColumnName, String serviceId, String name,
+                                                         String columnName,
+                                                         long startTB, long endTB) {
+        return select().fromSubQuery(client.getDatabase()).mean(columnName).from(name)
+                       .where()
+                       .and(eq(serviceColumnName, serviceId))
+                       .and(gte(InfluxClient.TIME, InfluxClient.timeInterval(startTB)))
+                       .and(lte(InfluxClient.TIME, InfluxClient.timeInterval(endTB)))
+                       .groupBy(MetricsDAO.TAG_ENTITY_ID);
+    }
+
+    private SelectSubQueryImpl<SelectQueryImpl> subQuery(String name, String columnName, long startTB, long endTB) {
+        return select().fromSubQuery(client.getDatabase()).mean(columnName).from(name)
+                       .where()
+                       .and(gte(InfluxClient.TIME, InfluxClient.timeInterval(startTB)))
+                       .and(lte(InfluxClient.TIME, InfluxClient.timeInterval(endTB)))
+                       .groupBy(MetricsDAO.TAG_ENTITY_ID);
+    }
+
+    private static final Comparator<TopNEntity> ASCENDING = Comparator.comparingLong(TopNEntity::getValue);
+
+    private static final Comparator<TopNEntity> DESCENDING = (a, b) -> Long.compare(b.getValue(), a.getValue());
 }

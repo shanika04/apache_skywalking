@@ -31,15 +31,23 @@ services:
       retries: 120
 
   oap:
-    extends:
-      file: ../base-compose.yml
-      service: oap
+    image: skywalking/oap:latest
+    expose:
+      - 11800
+      - 12800
+    networks:
+      - e2e
     environment:
-      SW_STORAGE: h2
-      SW_STORAGE_H2_URL: jdbc:h2:tcp://h2db:1521/skywalking-oap-db
+      - SW_STORAGE_H2_URL=jdbc:h2:tcp://h2db:1521/skywalking-oap-db
+    restart: on-failure
     depends_on:
       h2db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/127.0.0.1/11800"]
+      interval: 5s
+      timeout: 60s
+      retries: 120
 
 networks:
   e2e:

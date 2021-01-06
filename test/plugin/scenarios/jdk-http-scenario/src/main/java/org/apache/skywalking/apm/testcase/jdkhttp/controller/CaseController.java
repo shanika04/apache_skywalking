@@ -31,18 +31,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/case")
 public class CaseController {
 
-    private static final Logger LOGGER = LogManager.getLogger(CaseController.class);
+    private static final Logger logger = LogManager.getLogger(CaseController.class);
 
     private static final String SUCCESS = "Success";
 
     @RequestMapping("/jdk-http-scenario")
     @ResponseBody
     public String testcase() throws IOException {
-        // Like gateway forward trace header.
         URL url = new URL("http://localhost:8080/jdk-http-scenario/case/receiveContext-0");
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.addRequestProperty("key", "value");
-        connection.addRequestProperty("sw8", "123456");
         int responseCode = connection.getResponseCode();
         return "Success:" + responseCode;
     }
